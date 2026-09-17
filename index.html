@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArturGames</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --text: #eef4f1;
+      --muted: #9aaba4;
+      --gold: #e6c15a;
+      --mint: #7dcea0;
+      --line: rgba(255,255,255,.1);
+      --shadow: 0 24px 70px rgba(0,0,0,.55);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: Outfit, system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 12% -10%, rgba(125,206,160,.12), transparent 55%),
+        radial-gradient(800px 380px at 90% 0%, rgba(230,193,90,.08), transparent 50%),
+        linear-gradient(180deg, #0d1413 0%, #0a0f0e 100%);
+      overflow-x: hidden;
+    }
+    body.lock { overflow: hidden; }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: repeating-linear-gradient(0deg, transparent 0 11px, rgba(255,255,255,.015) 11px 12px);
+      opacity: .5;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 36px 0 80px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .brand { display: flex; flex-direction: column; gap: 8px; }
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--mint);
+      font-weight: 650;
+    }
+    h1 {
+      font-family: "Press Start 2P", monospace;
+      font-size: clamp(18px, 3vw, 26px);
+      line-height: 1.45;
+      font-weight: 400;
+    }
+    .hint { color: var(--muted); max-width: 420px; font-size: 15px; line-height: 1.5; }
+    .tools { display: flex; gap: 10px; align-items: center; }
+    .search {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 11px 16px;
+      min-width: 220px;
+      outline: none;
+      font: inherit;
+    }
+    .search:focus { border-color: rgba(125,206,160,.5); }
+    .count { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+      border-radius: 22px;
+      overflow: hidden;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(230,193,90,.28);
+      box-shadow: var(--shadow);
+    }
+
+    .art {
+      height: 168px;
+      position: relative;
+      overflow: hidden;
+      background: #111;
+    }
+    .art img.cover {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: pixelated;
+      transform: scale(1.04);
+    }
+    .art-fallback { position: absolute; inset: 0; background: #1a2220; }
+    .icon-wrap {
+      position: absolute;
+      left: 14px;
+      bottom: 14px;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.16);
+      background: #111;
+      box-shadow: 0 8px 20px rgba(0,0,0,.4);
+    }
+    .icon-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: rgba(0,0,0,.5);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 5px 8px;
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+    }
+
+    .body { padding: 16px 16px 18px; }
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .title-row h2 { font-size: 20px; font-weight: 800; }
+    .diff-pill {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      color: #dce8e2;
+    }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .tag {
+      font-size: 11px;
+      color: #cfe8da;
+      background: rgba(125,206,160,.12);
+      border: 1px solid rgba(125,206,160,.18);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+    .blurb { color: var(--muted); font-size: 14.5px; line-height: 1.45; }
+    .foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 40px 10px; }
+
+    /* Overlay de destaque */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      place-items: center;
+      padding: 18px;
+    }
+    .overlay.show { display: grid; }
+    .overlay-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(4,8,8,.72);
+      backdrop-filter: blur(10px);
+    }
+    .sheet {
+      position: relative;
+      width: min(920px, 100%);
+      max-height: min(92vh, 860px);
+      overflow: auto;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: #121918;
+      box-shadow: var(--shadow);
+      animation: pop .22s ease;
+    }
+    @keyframes pop {
+      from { transform: translateY(14px) scale(.98); opacity: 0; }
+      to { transform: none; opacity: 1; }
+    }
+
+    .hero {
+      position: relative;
+      min-height: 280px;
+      background: #0b0f0e;
+    }
+    .hero img {
+      width: 100%;
+      height: 320px;
+      object-fit: contain;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(255,255,255,.05), transparent 55%),
+        #0b0f0e;
+      image-rendering: pixelated;
+    }
+    .hero-fade {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 90px;
+      background: linear-gradient(transparent, #121918);
+      pointer-events: none;
+    }
+    .close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.45);
+      color: white;
+      border-radius: 50%;
+      cursor: pointer;
+      font: inherit;
+      font-size: 20px;
+    }
+
+    .sheet-body { padding: 8px 22px 24px; }
+    .sheet-head {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .sheet-head img {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: #111;
+    }
+    .sheet-head h2 { font-size: 28px; line-height: 1.1; }
+    .sheet-head p { color: var(--muted); margin-top: 4px; }
+
+    .scale {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 14px 0;
+    }
+    .scale span {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: 5px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+      color: #6f7f79;
+    }
+    .scale span.on {
+      color: #1a1406;
+      background: var(--gold);
+      border-color: var(--gold);
+      font-weight: 650;
+    }
+
+    .sheet-text { color: #d7e4de; line-height: 1.6; font-size: 15.5px; }
+    .meta { margin: 14px 0 18px; color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+    .cta {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 13px 14px;
+      font: inherit;
+      font-weight: 650;
+      background: var(--gold);
+      color: #1a1406;
+      cursor: pointer;
+    }
+    .cta-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+    @media (max-width: 640px) {
+      .wrap { width: calc(100% - 20px); padding-top: 22px; }
+      .search { min-width: 0; width: 100%; }
+      .tools { width: 100%; }
+      .hero img { height: 210px; }
+      .sheet-head h2 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="eyebrow">ArturGames</div>
+        <h1>Meus jogos</h1>
+      </div>
+      <p class="hint">Clique no card para abrir o destaque. Clique de novo no destaque (ou em Jogar) para abrir o jogo.</p>
+      <div class="tools">
+        <input class="search" id="search" type="search" placeholder="Buscar jogo..." />
+        <span class="count" id="count"></span>
+      </div>
+    </header>
+    <section class="grid" id="grid"></section>
+  </div>
+
+  <div class="overlay" id="overlay" aria-hidden="true">
+    <div class="overlay-bg" data-close></div>
+    <article class="sheet" id="sheet"></article>
+  </div>
+
+  <script>
+    const DIFFS = ["suave", "básico", "aprendiz", "médio", "rápido", "difícil", "extremo"];
+
+    /*
+      PARA ADICIONAR MAIS JOGOS:
+      id, title, url, icon, card, tags, genre, year, difficulty, short, long, controls
+      icon e card: caminhos no site do jogo (/icon.svg e /card.png)
+    */
+    const GAMES = [
+      {
+        id: "denselands",
+        title: "DenseLands",
+        url: "https://abs-js.github.io/DenseLands/",
+        icon: "https://abs-js.github.io/DenseLands/icon.svg",
+        card: "https://abs-js.github.io/DenseLands/card.png",
+        tags: ["RPG", "sandbox", "Minecraft"],
+        genre: "RPG sandbox",
+        year: "2026",
+        difficulty: "suave",
+        short: "Mundo aberto no estilo Minecraft: explore, craft e construa no seu ritmo.",
+        long: "RPG sandbox inspirado em Minecraft. O mundo nasce de uma seed, com biomas, estações, vilas, minas e masmorras. Colete recursos, craft na bancada e no forno, avance skills e explore sem pressa. Dificuldade suave — dá para jogar calmo e ir descobrindo o mapa.",
+        controls: "Toque / arraste na mochila · B usar · A atacar"
+      },
+      {
+        id: "hillfight",
+        title: "Hill Fight",
+        url: "https://abs-js.github.io/LoLg/",
+        icon: "https://abs-js.github.io/LoLg/icon.svg",
+        card: "https://abs-js.github.io/LoLg/card.png",
+        tags: ["batalha", "ação", "online"],
+        genre: "Batalha / ação online",
+        year: "2026",
+        difficulty: "rápido",
+        short: "Batalha de ação online na colina. Ritmo rápido, ondas e especiais.",
+        long: "Hill Fight é batalha de ação online. A colina acorda e as ondas não esperam: vida, moedas e habilidades especiais entram o tempo todo. Dificuldade rápido — o combate anda solto, sem ser o nível extremo.",
+        controls: "Mouse / toque na tela"
+      }
+    ];
+
+    const grid = document.getElementById("grid");
+    const search = document.getElementById("search");
+    const count = document.getElementById("count");
+    const overlay = document.getElementById("overlay");
+    const sheet = document.getElementById("sheet");
+    let openId = null;
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    function cardHTML(game) {
+      const tags = game.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
+      return `
+        <article class="card" data-id="${escapeHtml(game.id)}" tabindex="0" role="button">
+          <div class="art">
+            <div class="art-fallback"></div>
+            <img class="cover" src="${escapeHtml(game.card)}" alt="" onerror="this.style.display='none'" />
+            <div class="icon-wrap"><img src="${escapeHtml(game.icon)}" alt="" /></div>
+            <span class="badge">${escapeHtml(game.genre)}</span>
+          </div>
+          <div class="body">
+            <div class="title-row">
+              <h2>${escapeHtml(game.title)}</h2>
+              <span class="diff-pill">${escapeHtml(game.difficulty)}</span>
+            </div>
+            <div class="tags">${tags}</div>
+            <p class="blurb">${escapeHtml(game.short)}</p>
+            <div class="foot"><span>Toque para ver mais</span><span>↗</span></div>
+          </div>
+        </article>
+      `;
+    }
+
+    function scaleHTML(current) {
+      return DIFFS.map(d => `<span class="${d === current ? "on" : ""}">${d}</span>`).join("");
+    }
+
+    function sheetHTML(game) {
+      return `
+        <div class="hero">
+          <img src="${escapeHtml(game.card)}" alt="Cena de ${escapeHtml(game.title)}" onerror="this.style.display='none'" />
+          <div class="hero-fade"></div>
+          <button class="close" type="button" data-close aria-label="Fechar">×</button>
+        </div>
+        <div class="sheet-body">
+          <div class="sheet-head">
+            <img src="${escapeHtml(game.icon)}" alt="" />
+            <div>
+              <h2>${escapeHtml(game.title)}</h2>
+              <p>ArturGames · ${escapeHtml(game.genre)}</p>
+            </div>
+          </div>
+          <div class="scale">${scaleHTML(game.difficulty)}</div>
+          <p class="sheet-text">${escapeHtml(game.long)}</p>
+          <div class="meta">
+            <div>Tags: ${game.tags.map(escapeHtml).join(" · ")}</div>
+            <div>Controles: ${escapeHtml(game.controls)}</div>
+            <div>Ano: ${escapeHtml(game.year)}</div>
+          </div>
+          <button class="cta" type="button" data-play="${escapeHtml(game.id)}">Jogar agora</button>
+          <p class="cta-note">Clique de novo neste destaque para abrir o jogo</p>
+        </div>
+      `;
+    }
+
+    function render(list) {
+      count.textContent = list.length === 1 ? "1 jogo" : `${list.length} jogos`;
+      grid.innerHTML = list.length ? list.map(cardHTML).join("") : `<p class="empty">Nenhum jogo encontrado.</p>`;
+    }
+
+    function filtered() {
+      const q = search.value.trim().toLowerCase();
+      if (!q) return GAMES;
+      return GAMES.filter(g =>
+        [g.title, g.short, g.long, g.genre, g.difficulty, ...(g.tags || [])]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      );
+    }
+
+    function openGame(id) {
+      const game = GAMES.find(g => g.id === id);
+      if (game?.url) window.open(game.url, "_blank", "noopener");
+    }
+
+    function closeOverlay() {
+      openId = null;
+      overlay.classList.remove("show");
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("lock");
+    }
+
+    function openOverlay(id) {
+      const game = GAMES.find(g => g.id === id);
+      if (!game) return;
+      openId = id;
+      sheet.innerHTML = sheetHTML(game);
+      overlay.classList.add("show");
+      overlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("lock");
+    }
+
+    grid.addEventListener("click", (e) => {
+      const card = e.target.closest(".card");
+      if (!card) return;
+      openOverlay(card.dataset.id);
+    });
+
+    grid.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const card = e.target.closest(".card");
+      if (!card) return;
+      e.preventDefault();
+      openOverlay(card.dataset.id);
+    });
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target.closest("[data-close]")) {
+        closeOverlay();
+        return;
+      }
+      if (e.target.closest("[data-play]")) {
+        openGame(e.target.closest("[data-play]").dataset.play);
+        return;
+      }
+      if (e.target.closest(".sheet") && openId) {
+        openGame(openId);
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeOverlay();
+    });
+
+    search.addEventListener("input", () => render(filtered()));
+    render(GAMES);
+  </script>
+</body>
+</html>

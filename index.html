@@ -2,519 +2,1011 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>ArturGames</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <meta name="theme-color" content="#0d1413" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@380;500;650;800&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
-      --text: #eef4f1;
-      --muted: #9aaba4;
-      --gold: #e6c15a;
-      --mint: #7dcea0;
-      --line: rgba(255,255,255,.1);
-      --shadow: 0 24px 70px rgba(0,0,0,.55);
+      --text:#eef4f1; --muted:#9aaba4; --gold:#e6c15a; --mint:#3DDC84;
+      --line:rgba(255,255,255,.1); --bg:#0c1211; --card:#141c1b; --bar:#101716;
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { min-height: 100%; }
-    body {
-      font-family: Outfit, system-ui, sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(900px 420px at 12% -10%, rgba(125,206,160,.12), transparent 55%),
-        radial-gradient(800px 380px at 90% 0%, rgba(230,193,90,.08), transparent 50%),
-        linear-gradient(180deg, #0d1413 0%, #0a0f0e 100%);
-      overflow-x: hidden;
+    body.light { --text:#1b2422; --muted:#4d5c57; --line:rgba(0,0,0,.12); --bg:#eef3f0; --card:#fff; --bar:#e4ece8; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:Outfit,system-ui,sans-serif; }
+    body { padding-top:0; }
+    body.logged { padding-top:118px; }
+    .wrap { width:min(980px,calc(100% - 20px)); margin:0 auto; padding:18px 0 24px; }
+    .corner, .bell {
+      position:fixed; top:66px; z-index:35; width:48px; height:48px; border-radius:16px;
+      border:1px solid var(--line); background:var(--card); color:var(--text);
+      display:none; place-items:center;
     }
-    body.lock { overflow: hidden; }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image: repeating-linear-gradient(0deg, transparent 0 11px, rgba(255,255,255,.015) 11px 12px);
-      opacity: .5;
+    body.logged .corner, body.logged .bell { display:grid; }
+    #btn-shop { left:10px; } #btn-bag { right:10px; } .bell { right:66px; }
+    .side { position:fixed; top:56px; bottom:0; width:min(380px,92vw); background:var(--card); z-index:36; padding:16px; overflow:auto; display:none; }
+    .side.show { display:block; } #bag { right:0; } #shop { left:0; }
+    .scrim { position:fixed; inset:56px 0 0 0; background:rgba(0,0,0,.45); z-index:34; display:none; }
+    .scrim.show { display:block; }
+    .hint { position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:60; background:rgba(0,0,0,.75); color:#fff; padding:8px 12px; border-radius:10px; display:none; }
+    .eyebrow { font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--mint); font-weight:650; }
+    h1,h2 { font-family:"Press Start 2P",monospace; font-weight:400; }
+    h1 { font-size:clamp(13px,3vw,18px); line-height:1.5; margin:6px 0 12px; }
+    h2 { font-size:11px; line-height:1.5; margin:16px 0 8px; }
+    .muted { color:var(--muted); font-size:14px; line-height:1.45; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .tabs { display:flex; gap:6px; overflow:auto; }
+    .tab, button, .field { font:inherit; border-radius:12px; border:1px solid var(--line); background:rgba(127,127,127,.08); color:var(--text); }
+    .tab, button { padding:8px 11px; cursor:pointer; }
+    .tab.on, .cta { background:var(--mint); color:#06240f; border-color:var(--mint); font-weight:650; }
+    .ghost { background:transparent; }
+    .danger { color:#c44536; border-color:rgba(180,60,50,.35); }
+    .field { width:100%; padding:10px 12px; margin:6px 0; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden; cursor:pointer; }
+    .art { height:130px; background:#111; }
+    .art img { width:100%; height:100%; object-fit:cover; image-rendering:pixelated; }
+    .icon { width:28px; height:28px; border-radius:8px; }
+    .pad { padding:12px; }
+    .name-row { display:flex; align-items:center; gap:8px; }
+    .hero-card img { width:100%; max-height:200px; object-fit:contain; }
+    .tag { font-size:11px; padding:3px 7px; border-radius:999px; background:rgba(125,206,160,.15); }
+    .tag.on { background:var(--mint); color:#06240f; }
+    .nav { position:fixed; left:0; right:0; top:0; height:56px; background:var(--bar); border-bottom:1px solid var(--line); display:grid; grid-template-columns:repeat(6,1fr); z-index:40; }
+    .nav button { border:0; background:transparent; color:var(--muted); border-radius:0; font-size:10px; }
+    .nav button.on { color:var(--mint); }
+    .hud { display:flex; gap:10px; font-size:13px; color:var(--muted); margin-bottom:10px; align-items:center; flex-wrap:wrap; }
+    .hud b { color:var(--mint); }
+    .orbs { display:flex; gap:6px; }
+    .orb {
+      width:16px; height:16px; border-radius:50%;
+      background:radial-gradient(circle at 35% 30%, #fff, var(--mint) 45%, #0a5 80%);
+      box-shadow:0 0 8px var(--mint);
+      position:relative; overflow:hidden;
     }
-
-    .wrap {
-      width: min(1180px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 36px 0 80px;
+    .orb.off { filter:grayscale(1); opacity:.35; box-shadow:none; }
+    .orb::after {
+      content:""; position:absolute; inset:-40% -20%;
+      background:linear-gradient(115deg, transparent 40%, rgba(255,255,255,.8) 50%, transparent 60%);
+      animation:zap 1.4s linear infinite;
     }
-
-    header {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-bottom: 28px;
-    }
-
-    .brand { display: flex; flex-direction: column; gap: 8px; }
-    .eyebrow {
-      font-size: 12px;
-      letter-spacing: .22em;
-      text-transform: uppercase;
-      color: var(--mint);
-      font-weight: 650;
-    }
-    h1 {
-      font-family: "Press Start 2P", monospace;
-      font-size: clamp(18px, 3vw, 26px);
-      line-height: 1.45;
-      font-weight: 400;
-    }
-    .hint { color: var(--muted); max-width: 420px; font-size: 15px; line-height: 1.5; }
-    .tools { display: flex; gap: 10px; align-items: center; }
-    .search {
-      background: rgba(255,255,255,.04);
-      border: 1px solid var(--line);
-      color: var(--text);
-      border-radius: 999px;
-      padding: 11px 16px;
-      min-width: 220px;
-      outline: none;
-      font: inherit;
-    }
-    .search:focus { border-color: rgba(125,206,160,.5); }
-    .count { font-size: 13px; color: var(--muted); white-space: nowrap; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 18px;
-    }
-
-    .card {
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
-      border-radius: 22px;
-      overflow: hidden;
-      cursor: pointer;
-      box-shadow: 0 8px 24px rgba(0,0,0,.18);
-      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
-    }
-    .card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(230,193,90,.28);
-      box-shadow: var(--shadow);
-    }
-
-    .art {
-      height: 168px;
-      position: relative;
-      overflow: hidden;
-      background: #111;
-    }
-    .art img.cover {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      image-rendering: pixelated;
-      transform: scale(1.04);
-    }
-    .art-fallback { position: absolute; inset: 0; background: #1a2220; }
-    .icon-wrap {
-      position: absolute;
-      left: 14px;
-      bottom: 14px;
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,.16);
-      background: #111;
-      box-shadow: 0 8px 20px rgba(0,0,0,.4);
-    }
-    .icon-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-    .badge {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      font-size: 11px;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      background: rgba(0,0,0,.5);
-      border: 1px solid rgba(255,255,255,.12);
-      padding: 5px 8px;
-      border-radius: 999px;
-      backdrop-filter: blur(8px);
-    }
-
-    .body { padding: 16px 16px 18px; }
-    .title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-    .title-row h2 { font-size: 20px; font-weight: 800; }
-    .diff-pill {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      color: #dce8e2;
-    }
-    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-    .tag {
-      font-size: 11px;
-      color: #cfe8da;
-      background: rgba(125,206,160,.12);
-      border: 1px solid rgba(125,206,160,.18);
-      padding: 4px 8px;
-      border-radius: 999px;
-    }
-    .blurb { color: var(--muted); font-size: 14.5px; line-height: 1.45; }
-    .foot {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 12px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 40px 10px; }
-
-    /* Overlay de destaque */
-    .overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 40;
-      display: none;
-      place-items: center;
-      padding: 18px;
-    }
-    .overlay.show { display: grid; }
-    .overlay-bg {
-      position: absolute;
-      inset: 0;
-      background: rgba(4,8,8,.72);
-      backdrop-filter: blur(10px);
-    }
-    .sheet {
-      position: relative;
-      width: min(920px, 100%);
-      max-height: min(92vh, 860px);
-      overflow: auto;
-      border-radius: 24px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: #121918;
-      box-shadow: var(--shadow);
-      animation: pop .22s ease;
-    }
-    @keyframes pop {
-      from { transform: translateY(14px) scale(.98); opacity: 0; }
-      to { transform: none; opacity: 1; }
-    }
-
-    .hero {
-      position: relative;
-      min-height: 280px;
-      background: #0b0f0e;
-    }
-    .hero img {
-      width: 100%;
-      height: 320px;
-      object-fit: contain;
-      background:
-        radial-gradient(circle at 50% 40%, rgba(255,255,255,.05), transparent 55%),
-        #0b0f0e;
-      image-rendering: pixelated;
-    }
-    .hero-fade {
-      position: absolute;
-      left: 0; right: 0; bottom: 0;
-      height: 90px;
-      background: linear-gradient(transparent, #121918);
-      pointer-events: none;
-    }
-    .close {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      width: 38px;
-      height: 38px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(0,0,0,.45);
-      color: white;
-      border-radius: 50%;
-      cursor: pointer;
-      font: inherit;
-      font-size: 20px;
-    }
-
-    .sheet-body { padding: 8px 22px 24px; }
-    .sheet-head {
-      display: flex;
-      gap: 14px;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-    .sheet-head img {
-      width: 64px;
-      height: 64px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: #111;
-    }
-    .sheet-head h2 { font-size: 28px; line-height: 1.1; }
-    .sheet-head p { color: var(--muted); margin-top: 4px; }
-
-    .scale {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin: 14px 0;
-    }
-    .scale span {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      padding: 5px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.08);
-      color: #6f7f79;
-    }
-    .scale span.on {
-      color: #1a1406;
-      background: var(--gold);
-      border-color: var(--gold);
-      font-weight: 650;
-    }
-
-    .sheet-text { color: #d7e4de; line-height: 1.6; font-size: 15.5px; }
-    .meta { margin: 14px 0 18px; color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
-    .cta {
-      width: 100%;
-      border: 0;
-      border-radius: 14px;
-      padding: 13px 14px;
-      font: inherit;
-      font-weight: 650;
-      background: var(--gold);
-      color: #1a1406;
-      cursor: pointer;
-    }
-    .cta-note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
-
-    @media (max-width: 640px) {
-      .wrap { width: calc(100% - 20px); padding-top: 22px; }
-      .search { min-width: 0; width: 100%; }
-      .tools { width: 100%; }
-      .hero img { height: 210px; }
-      .sheet-head h2 { font-size: 22px; }
-    }
+    @keyframes zap { from { transform:translateX(-60%); } to { transform:translateX(60%); } }
+    .stk.gold { box-shadow:0 0 12px #e6c15a; animation:shineGold 1.6s ease-in-out infinite; }
+    .stk.silver { box-shadow:0 0 12px #cfd8dc; animation:shineSilver 1.6s ease-in-out infinite; }
+    @keyframes shineGold { 50% { box-shadow:0 0 18px #ffe27a; } }
+    @keyframes shineSilver { 50% { box-shadow:0 0 18px #fff; } }
+    .post, .item { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; margin-bottom:10px; }
+    .post img.att { width:100%; border-radius:12px; margin:8px 0; max-height:240px; object-fit:cover; }
+    .stickers { display:flex; gap:6px; flex-wrap:wrap; }
+    .stk { width:44px; height:44px; border-radius:12px; border:1px solid var(--line); display:grid; place-items:center; padding:6px; }
+    .stk svg { width:28px; height:28px; }
+    .cmt { margin-top:8px; }
+    .cmt .cmt { margin-left:14px; border-left:2px solid var(--line); padding-left:8px; }
+    .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:70; display:none; place-items:center; padding:16px; }
+    .modal-bg.show { display:grid; }
+    .modal { width:min(440px,100%); background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; max-height:86vh; overflow:auto; }
+    .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--card); border:1px solid var(--line); padding:10px 14px; border-radius:12px; z-index:80; display:none; }
+    .toast.show { display:block; }
+    .badge { position:absolute; top:4px; right:4px; background:#c44536; color:#fff; font-size:10px; min-width:16px; height:16px; border-radius:99px; display:grid; place-items:center; }
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:40; display:none; place-items:end center; }
+    .overlay.show { display:grid; }
+    .sheet { width:min(720px,100%); max-height:92vh; overflow:auto; background:var(--card); border-radius:20px 20px 0 0; padding:16px; }
+    .player { position:fixed; inset:0; z-index:50; display:none; background:#000; }
+    .player.show { display:block; }
+    .player iframe { width:100%; height:100%; border:0; }
+    .err { color:#c44536; }
+    .hidden { display:none !important; }
+    .chat-log { max-height:40vh; overflow:auto; }
+    .bubble { background:rgba(127,127,127,.12); border-radius:12px; padding:8px 10px; margin:6px 0; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <div class="eyebrow">ArturGames</div>
-        <h1>Meus jogos</h1>
-      </div>
-      <p class="hint">Clique no card para abrir o destaque. Clique de novo no destaque (ou em Jogar) para abrir o jogo.</p>
-      <div class="tools">
-        <input class="search" id="search" type="search" placeholder="Buscar jogo..." />
-        <span class="count" id="count"></span>
-      </div>
-    </header>
-    <section class="grid" id="grid"></section>
-  </div>
+  <button class="corner" id="btn-shop" type="button" title="Mercado">🛒</button>
+  <button class="bell" id="btn-notes" type="button">🔔<span class="badge hidden" id="note-badge">0</span></button>
+  <button class="corner" id="btn-bag" type="button" title="Mochila">🎒</button>
+  <nav class="nav" id="nav"></nav>
+  <div class="scrim" id="scrim"></div>
+  <aside class="side" id="shop"></aside>
+  <aside class="side" id="bag"></aside>
+  <div class="wrap" id="app"></div>
+  <div class="overlay" id="overlay"><div class="sheet" id="sheet"></div></div>
+  <div class="player" id="player"><iframe id="frame" title="Jogo"></iframe></div>
+  <div class="hint" id="exit-hint"></div>
+  <div class="modal-bg" id="modal-bg"><div class="modal" id="modal"></div></div>
+  <div class="toast" id="toast"></div>
 
-  <div class="overlay" id="overlay" aria-hidden="true">
-    <div class="overlay-bg" data-close></div>
-    <article class="sheet" id="sheet"></article>
-  </div>
+<script>
+const SUPABASE_URL = "https://mfwqqkzlqlklnrgabvvx.supabase.co";
+const SUPABASE_KEY = "sb_publishable_QI81OZKskWRgjBz5ZoYABQ_Py3m3Zb2";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+async function db(action, table, key = null, value = null) {
+  const { data, error } = await sb.functions.invoke("DB", { body: { action, table, key, value } });
+  if (error) {
+    let d = ""; try { if (error.context) d = await error.context.text(); } catch {}
+    throw new Error(error.message + (d ? " | " + d : ""));
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
 
-  <script>
-    const DIFFS = ["suave", "básico", "aprendiz", "médio", "rápido", "difícil", "extremo"];
+const T = { users:"ag_users", pub:"ag_public", posts:"ag_posts", mail:"ag_mail", games:"ag_games", uid:"ag_uid", chats:"ag_chats" };
+const ENERGY_MAX = 7, BAN_AT = 10, MSG_TTL = 3*24*60*60*1000, ORB_FREE_MS = 21*60*60*1000, EMERGENCY_COST = 45;
+const REPORT_REASONS = ["spam","inappropriate","harassment","cheat"];
+const BAD = /\b(porra|caralho|merda|puta|puto|bosta|fod[ae]|buceta|punheta|viado|cu\b|pênis|penis|porno|porn|sex|sexy|nudes|fuck|shit|bitch|asshole|dick|pussy|cunt|slut)\b/gi;
+const INTERESTS = ["rpg","sandbox","luta","ação","online","aventura","construção","ondas"];
+const GAMES = [
+  { id:"denselands", title:"DenseLands", base:"https://abs-js.github.io/DenseLands/", tags:["rpg","sandbox","construção"], genre:"RPG sandbox", difficulty:"suave", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png","manifest.json","service-worker.js","map.html","wiki.html"] },
+  { id:"hillfight", title:"Hill Fight", base:"https://abs-js.github.io/LoLg/", tags:["luta","ação","online","ondas"], genre:"Batalha online", difficulty:"rápido", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] }
+];
+const svg = (inner) => `<svg viewBox="0 0 32 32">${inner}</svg>`;
+const STICKERS = [
+  { id:"dl_logo", n:"Logo DenseLands", pack:"denselands", svg: svg('<rect width="32" height="32" fill="#111"/><path fill="#3c8d40" d="M6 26l8-14 8 14z"/><path fill="#00d9ff" d="M16 6l5 8-5 8-5-8z"/>') },
+  { id:"scarf", n:"Cachecol", pack:"denselands", svg: svg('<path fill="#c44536" d="M10 8h12v4H10z"/><path fill="#8a2f28" d="M20 12l4 14h-3L18 12z"/>') },
+  { id:"slime", n:"Gosma", pack:"denselands", svg: svg('<path fill="#7dcea0" d="M6 22c0-8 4-14 10-14s10 6 10 14H6z"/><circle cx="12" cy="16" r="1.5"/><circle cx="20" cy="16" r="1.5"/>') },
+  { id:"flower", n:"Flor", pack:"denselands", svg: svg('<circle fill="#e6c15a" cx="16" cy="16" r="4"/><circle fill="#d46aa0" cx="16" cy="8" r="4"/><circle fill="#d46aa0" cx="16" cy="24" r="4"/><circle fill="#d46aa0" cx="8" cy="16" r="4"/><circle fill="#d46aa0" cx="24" cy="16" r="4"/>') },
+  { id:"crystal", n:"Cristal", pack:"denselands", svg: svg('<path fill="#5ec8d8" d="M16 4l8 8-8 16L8 12z"/><path fill="#8eebf0" d="M16 4l8 8H8z"/>') },
+  { id:"hf_logo", n:"Logo Hill Fight", pack:"hillfight", svg: svg('<rect width="32" height="32" rx="8" fill="#1c1f23"/><path fill="#8b929a" d="M6 24l6-10 4 6 6-12 4 16H6z"/>') },
+  { id:"sword2", n:"Espada", pack:"hillfight", svg: svg('<path fill="#c5d0da" d="M18 4l10 10-2 2-10-10z"/><path fill="#e6c15a" d="M6 20l6 6 2-2-6-6z"/>') },
+  { id:"bow", n:"Arco", pack:"hillfight", svg: svg('<path fill="none" stroke="#c9b27a" stroke-width="2" d="M8 6c10 4 10 16 0 20"/><path stroke="#ddd" d="M8 6l16 10L8 26"/>') },
+  { id:"mountain", n:"Montanha", pack:"hillfight", svg: svg('<path fill="#6d8b74" d="M4 26l8-12 4 6 4-8 8 14z"/>') },
+  { id:"swords_shield", n:"Espadas e escudo", pack:"hillfight", svg: svg('<path fill="#c9b27a" d="M16 6l8 4v8c0 5-8 8-8 8s-8-3-8-8V10z"/><path fill="#c5d0da" d="M7 8l6 6-2 2-6-6zm18 0l-6 6 2 2 6-6z"/>') },
+  { id:"coinchest", n:"Baú de moedas", pack:"hillfight", svg: svg('<rect x="6" y="14" width="20" height="12" rx="2" fill="#8a6a1a"/><rect x="6" y="10" width="20" height="6" fill="#c9b27a"/><circle cx="16" cy="20" r="3" fill="#e6c15a"/>') },
+  { id:"happy", n:"Feliz", pack:"emoji", svg: svg('<circle fill="#e6c15a" cx="16" cy="16" r="12"/><circle cx="11" cy="13" r="2"/><circle cx="21" cy="13" r="2"/><path fill="none" stroke="#1a1406" stroke-width="2" d="M10 19c2 3 10 3 12 0"/>') },
+  { id:"sad", n:"Triste", pack:"emoji", svg: svg('<circle fill="#7aa0c8" cx="16" cy="16" r="12"/><circle cx="11" cy="14" r="2"/><circle cx="21" cy="14" r="2"/><path fill="none" stroke="#1a1406" stroke-width="2" d="M10 22c2-3 10-3 12 0"/>') },
+  { id:"angry", n:"Raiva", pack:"emoji", svg: svg('<circle fill="#c44536" cx="16" cy="16" r="12"/><path d="M8 10l6 3M24 10l-6 3" stroke="#1a1406" stroke-width="2"/><circle cx="11" cy="15" r="2"/><circle cx="21" cy="15" r="2"/>') },
+  { id:"wow", n:"Surpreso", pack:"emoji", svg: svg('<circle fill="#e6c15a" cx="16" cy="16" r="12"/><circle cx="11" cy="13" r="2"/><circle cx="21" cy="13" r="2"/><ellipse cx="16" cy="21" rx="3" ry="4"/>') },
+  { id:"cool", n:"Legal", pack:"emoji", svg: svg('<circle fill="#e6c15a" cx="16" cy="16" r="12"/><rect x="7" y="12" width="18" height="4" rx="2"/><path fill="none" stroke="#1a1406" d="M11 21h10"/>') }
+];
+const PACKS = [
+  { id:"denselands", n:"Pack DenseLands", price:80, stickers:["dl_logo","scarf","slime","flower","crystal"] },
+  { id:"hillfight", n:"Pack Hill Fight", price:80, stickers:["hf_logo","sword2","bow","mountain","swords_shield","coinchest"] },
+  { id:"emoji", n:"Pack Emoji", price:35, stickers:["happy","sad","angry","wow","cool"] }
+];
+const FRAMES = [
+  { id:"default", n:"Padrão", price:0 }, { id:"forest", n:"Floresta", price:40 },
+  { id:"night", n:"Noite", price:40 }, { id:"gold", n:"Ouro", price:80 }, { id:"crystal", n:"Cristal", price:90 }
+];
 
-    /*
-      PARA ADICIONAR MAIS JOGOS:
-      id, title, url, icon, card, tags, genre, year, difficulty, short, long, controls
-      icon e card: caminhos no site do jogo (/icon.svg e /card.png)
-    */
-    const GAMES = [
-      {
-        id: "denselands",
-        title: "DenseLands",
-        url: "https://abs-js.github.io/DenseLands/",
-        icon: "https://abs-js.github.io/DenseLands/icon.svg",
-        card: "https://abs-js.github.io/DenseLands/card.png",
-        tags: ["RPG", "sandbox", "Minecraft"],
-        genre: "RPG sandbox",
-        year: "2026",
-        difficulty: "suave",
-        short: "Mundo aberto no estilo Minecraft: explore, craft e construa no seu ritmo.",
-        long: "RPG sandbox inspirado em Minecraft. O mundo nasce de uma seed, com biomas, estações, vilas, minas e masmorras. Colete recursos, craft na bancada e no forno, avance skills e explore sem pressa. Dificuldade suave — dá para jogar calmo e ir descobrindo o mapa.",
-        controls: "Toque / arraste na mochila · B usar · A atacar"
-      },
-      {
-        id: "hillfight",
-        title: "Hill Fight",
-        url: "https://abs-js.github.io/LoLg/",
-        icon: "https://abs-js.github.io/LoLg/icon.svg",
-        card: "https://abs-js.github.io/LoLg/card.png",
-        tags: ["batalha", "ação", "online"],
-        genre: "Batalha / ação online",
-        year: "2026",
-        difficulty: "rápido",
-        short: "Batalha de ação online na colina. Ritmo rápido, ondas e especiais.",
-        long: "Hill Fight é batalha de ação online. A colina acorda e as ondas não esperam: vida, moedas e habilidades especiais entram o tempo todo. Dificuldade rápido — o combate anda solto, sem ser o nível extremo.",
-        controls: "Mouse / toque na tela"
+const I18N = {
+  pt: {
+    home:"Casa", games:"Jogos", community:"Comunidade", friends:"Amigos", me:"Eu", market:"Mercado",
+    bag:"Mochila", shop:"Loja", notes:"Avisos", login:"Entrar", signup:"Criar conta", name:"Nome", email:"E-mail", pass:"Senha",
+    wait:"Aguarde…", needTag:"Escolha pelo menos 1 tag.", emailUsed:"E-mail já usado.", badLogin:"E-mail ou senha incorretos.",
+    likesHelp:"Até 4 tags do que você gosta", playToEnter:"Entrar para jogar",
+    myGames:"Meus jogos", search:"Procurar", popular:"Populares", noneHere:"Nenhum jogo aqui.",
+    downloaded:"baixado", notDownloaded:"não baixado", play:"Jogar", del:"Apagar", download:"Baixar", close:"Fechar",
+    price:"Preço", free:"grátis", energyCost:"1 energia para baixar/apagar", onDevice:"Neste aparelho",
+    start:"Início", alerts:"Avisos", noAlerts:"Sem avisos novos.", challenges:"Desafios", suggest:"Sugestão", recent:"Posts recentes",
+    people:"Pessoas", talkGame:"Fale de um jogo", upTo4:"Até 4 tags", publish:"Publicar · 1 energia", all:"todos", noPosts:"Nenhum post.",
+    writeSomething:"Escreva algo.", comment:"Comentar", reply:"Responder", report:"Reportar", sticker:"Sticker",
+    noStickers:"Sem figurinhas.", sent:"Enviado.", packOpen:"Pack aberto", ok:"Ok", cancel:"Cancelar",
+    social:"Social", find:"Encontrar", requests:"Pedidos", chat:"Bate-papo", askFriend:"Pedir amizade", accept:"Aceitar", deny:"Recusar",
+    nobodyNew:"Ninguém novo.", noReq:"Sem pedidos.", needFriend:"Faça um amigo primeiro.", back:"Voltar",
+    msgGone:"Mensagens somem em 3 dias.", empty:"Vazio", send:"Enviar", settings:"Ajustes", personal:"Pessoal", theme:"Tema",
+    howSee:"Como você vê o site", light:"Usar claro", dark:"Usar escuro", exitHelp:"Segure os dois Shifts por 5 segundos, ou 6 dedos na tela.",
+    howSeen:"Como te veem", bio:"Bio", saveProfile:"Salvar perfil", preview:"Prévia", saved:"Perfil salvo.",
+    logout:"Sair da conta", banned:"Conta suspensa.", reports:"Reports",
+    packs:"Sticker packs", frames:"Molduras", buyPack:"Comprar pack", equipped:"Equipada", buy:"Comprar",
+    coinsLow:"Moedas insuficientes.", packBag:"Pack na mochila. Abra lá.",
+    freeOrb:"Orbe grátis (1 / 21h)", emergency:"Recarga de emergência (5 orbes)",
+    takeFree:"Pegar orbe", recharge:"Recarregar", energyFull:"Energia cheia.", waitOrb:"Ainda não passou 21h.",
+    holdExit:"Segure para sair", todayPlay:"Tempo hoje", totalPlay:"Tempo total", language:"Idioma",
+    streak:"Ofensiva", streakScore:"Pontos de ofensiva", days:"dias",
+    reason:"Motivo", spam:"spam", inappropriate:"conteúdo impróprio", harassment:"assédio", cheat:"trapaça",
+    reportSent:"Report enviado.", cantReport:"Não dá para reportar.",
+    open:"Abrir", sendStk:"Enviar · 1 energia", energy:"energia", coins:"moedas",
+    noEnergy:"Sem energia.", shinyGold:"Brilhante ouro!", shinySilver:"Brilhante prata!"
+  },
+  en: {
+    home:"Home", games:"Games", community:"Community", friends:"Friends", me:"Me", market:"Market",
+    bag:"Backpack", shop:"Shop", notes:"Alerts", login:"Log in", signup:"Create account", name:"Name", email:"Email", pass:"Password",
+    wait:"Please wait…", needTag:"Pick at least 1 tag.", emailUsed:"Email already used.", badLogin:"Wrong email or password.",
+    likesHelp:"Up to 4 tags you like", playToEnter:"Log in to play",
+    myGames:"My games", search:"Search", popular:"Popular", noneHere:"No games here.",
+    downloaded:"downloaded", notDownloaded:"not downloaded", play:"Play", del:"Delete", download:"Download", close:"Close",
+    price:"Price", free:"free", energyCost:"1 energy to download/delete", onDevice:"On this device",
+    start:"Home", alerts:"Alerts", noAlerts:"No new alerts.", challenges:"Challenges", suggest:"Suggested", recent:"Recent posts",
+    people:"People", talkGame:"Talk about a game", upTo4:"Up to 4 tags", publish:"Post · 1 energy", all:"all", noPosts:"No posts.",
+    writeSomething:"Write something.", comment:"Comment", reply:"Reply", report:"Report", sticker:"Sticker",
+    noStickers:"No stickers.", sent:"Sent.", packOpen:"Pack opened", ok:"Ok", cancel:"Cancel",
+    social:"Social", find:"Find", requests:"Requests", chat:"Chat", askFriend:"Add friend", accept:"Accept", deny:"Decline",
+    nobodyNew:"Nobody new.", noReq:"No requests.", needFriend:"Make a friend first.", back:"Back",
+    msgGone:"Messages last 3 days.", empty:"Empty", send:"Send", settings:"Settings", personal:"Personal", theme:"Theme",
+    howSee:"How you see the site", light:"Use light", dark:"Use dark", exitHelp:"Hold both Shifts for 5 seconds, or 6 fingers on the screen.",
+    howSeen:"How others see you", bio:"Bio", saveProfile:"Save profile", preview:"Preview", saved:"Profile saved.",
+    logout:"Log out", banned:"Account suspended.", reports:"Reports",
+    packs:"Sticker packs", frames:"Frames", buyPack:"Buy pack", equipped:"Equipped", buy:"Buy",
+    coinsLow:"Not enough coins.", packBag:"Pack is in your bag. Open it there.",
+    freeOrb:"Free orb (1 / 21h)", emergency:"Emergency refill (5 orbs)",
+    takeFree:"Take orb", recharge:"Refill", energyFull:"Energy is full.", waitOrb:"21 hours have not passed yet.",
+    holdExit:"Hold to exit", todayPlay:"Play time today", totalPlay:"Total play time", language:"Language",
+    streak:"Streak", streakScore:"Streak score", days:"days",
+    reason:"Reason", spam:"spam", inappropriate:"inappropriate", harassment:"harassment", cheat:"cheating",
+    reportSent:"Report sent.", cantReport:"Can't report that.",
+    open:"Open", sendStk:"Send · 1 energy", energy:"energy", coins:"coins",
+    noEnergy:"No energy.", shinyGold:"Gold shiny!", shinySilver:"Silver shiny!"
+  }
+};
+let lang = localStorage.getItem("ag_lang") || "pt";
+const t = (k) => (I18N[lang] && I18N[lang][k]) || I18N.pt[k] || k;
+function cleanText(s){ return String(s||"").replace(BAD, "****"); }
+
+const app = document.getElementById("app");
+const nav = document.getElementById("nav");
+const overlay = document.getElementById("overlay");
+const sheet = document.getElementById("sheet");
+let view = "casa", jogosTab = "meus", euTab = "pessoal", amigosTab = "achar", chatWith = null;
+let me = null, playStart = 0, playingId = null, postImage = "";
+const shifts = { left:false, right:false };
+let holdTimer = 0, holdMs = 0;
+
+const today = () => new Date().toISOString().slice(0,10);
+const fmt = (n) => n < 1024 ? n+" B" : n < 1048576 ? (n/1024).toFixed(1)+" KB" : (n/1048576).toFixed(2)+" MB";
+const playUrl = (id, rel="index.html") => new URL(`play/${id}/${rel}`, location.href).href;
+const cacheName = (id) => `ag-game-${id}`;
+function parseStk(item) {
+  if (!item) return { id: STICKERS[0].id, shine: "" };
+  if (typeof item === "string") {
+    const [id, shine=""] = item.split("#");
+    return { id, shine };
+  }
+  return { id: item.id, shine: item.shine || "" };
+}
+const stk = (id) => STICKERS.find(s => s.id === id) || STICKERS[0];
+function stkIcon(item) {
+  const p = parseStk(item);
+  const s = stk(p.id);
+  return `<span class="stk ${p.shine||""}" title="${s.n}${p.shine?" "+p.shine:""}">${s.svg}</span>`;
+}
+const unreadNotes = () => (me?.notes || []).filter(n => !n.read).length;
+function refreshBadge() {
+  const b = document.getElementById("note-badge");
+  if (!b) return;
+  const n = unreadNotes();
+  b.textContent = n; b.classList.toggle("hidden", !n);
+}
+function listOf(r) {
+  const raw = r?.data ?? [];
+  if (Array.isArray(raw)) return raw.map(x => x?.value !== undefined ? { key:x.key, value:x.value } : { key:x.key||x.id, value:x });
+  if (raw && typeof raw === "object") return Object.entries(raw).map(([key,value]) => ({ key, value }));
+  return [];
+}
+function escapeHtml(s){ return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+async function hashPass(email, pass) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(email.toLowerCase()+"|"+pass+"|ag"));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+}
+function freshUser(email, name, passHash, likesTags) {
+  return {
+    id: crypto.randomUUID(), email: email.toLowerCase(), name, passHash,
+    createdAt: Date.now(), energy: ENERGY_MAX, energyDay: today(), coins: 40,
+    lastLoginDay: today(), lastPackDay: today(),
+    backpack: { packs: { emoji:1, denselands:0, hillfight:0 }, stickers: [] },
+    avatar: { frame:"default" }, installed: [], playMs: {}, notes: [],
+    banned:false, reportCount:0, reportsLog:[], lastFreeOrb:0, likesTags, bio:"", theme:{ light:false, lang:"pt" },
+    friends: [], reqIn: [], reqOut: [],
+    daily: { day: today(), playMin:0, likes:0, posted:false, pack:false, claimed:{} }
+  };
+}
+function publicOf(u) {
+  return { id:u.id, name:u.name, avatar:u.avatar, likesTags:u.likesTags||[], bio:u.bio||"", lastLoginDay:u.lastLoginDay };
+}
+async function saveMe() {
+  await db("set", T.users, me.email, me);
+  await db("set", T.pub, me.id, publicOf(me));
+  await db("set", T.uid, me.id, me.email);
+}
+async function userById(id) {
+  try {
+    const email = (await db("get", T.uid, id))?.value;
+    if (!email) return null;
+    return (await db("get", T.users, email))?.value || null;
+  } catch { return null; }
+}
+async function saveUser(u) {
+  await db("set", T.users, u.email, u);
+  await db("set", T.pub, u.id, publicOf(u));
+  await db("set", T.uid, u.id, u.email);
+}
+async function notify(userId, note) {
+  const u = userId === me?.id ? me : await userById(userId);
+  if (!u) return;
+  u.notes = u.notes || [];
+  u.notes.unshift({ id: crypto.randomUUID(), read:false, createdAt: Date.now(), ...note });
+  u.notes = u.notes.slice(0,50);
+  await saveUser(u);
+  if (me && u.id === me.id) { me = u; refreshBadge(); }
+}
+function toast(msg){ const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),2400); }
+function closeModal(){ document.getElementById("modal-bg").classList.remove("show"); }
+function openModal(html){ document.getElementById("modal").innerHTML=html; document.getElementById("modal-bg").classList.add("show"); }
+function uiText(title, ph="") {
+  return new Promise(resolve => {
+    openModal(`<h2>${title}</h2><textarea class="field" id="mtext" placeholder="${ph}"></textarea><div class="row"><button class="cta" id="mok">Ok</button><button class="ghost" id="mcancel">Cancelar</button></div>`);
+    document.getElementById("mok").onclick=()=>{ const v=document.getElementById("mtext").value.trim(); closeModal(); resolve(v); };
+    document.getElementById("mcancel").onclick=()=>{ closeModal(); resolve(""); };
+  });
+}
+function uiPick(title, items) {
+  return new Promise(resolve => {
+    if (!items.length) return resolve(null);
+    openModal(`<h2>${title}</h2>${items.map((it,i)=>`<button class="ghost" data-i="${i}" style="width:100%;margin:4px 0;text-align:left">${it.label}</button>`).join("")}<button class="ghost" id="mcancel">Cancelar</button>`);
+    document.getElementById("modal").querySelectorAll("[data-i]").forEach(b => b.onclick=()=>{ closeModal(); resolve(items[+b.dataset.i]); });
+    document.getElementById("mcancel").onclick=()=>{ closeModal(); resolve(null); };
+  });
+}
+function guardBan(){ if(me?.banned){ toast("Conta suspensa."); return true; } return false; }
+function applyDaily(u){
+  const d=today();
+  if (u.energyDay!==d){ u.energy=ENERGY_MAX; u.energyDay=d; }
+  if (u.lastPackDay!==d){ u.lastPackDay=d; u.backpack.packs=u.backpack.packs||{}; u.backpack.packs.emoji=(u.backpack.packs.emoji||0)+1; }
+  u.lastLoginDay=d;
+  if (u.daily?.day!==d) u.daily={ day:d, playMin:0, likes:0, posted:false, pack:false, claimed:{} };
+}
+async function spendEnergy(n=1){ if(!me||me.energy<n) throw new Error(t("noEnergy")); me.energy-=n; await saveMe(); }
+function applyTheme(){
+  document.body.classList.toggle("light", Boolean(me?.theme?.light));
+  lang = me?.theme?.lang || localStorage.getItem("ag_lang") || "pt";
+  document.documentElement.lang = lang === "en" ? "en" : "pt-BR";
+}
+function hud(){
+  if(!me) return "";
+  const orbs = Array.from({length:ENERGY_MAX}, (_,i)=>`<span class="orb ${i<me.energy?"":"off"}"></span>`).join("");
+  return `<div class="hud"><span class="orbs">${orbs}</span><span>${t("energy")} <b>${me.energy}/${ENERGY_MAX}</b></span><span>${t("coins")} <b>${me.coins}</b></span></div>`;
+}
+function closeSides(){
+  document.getElementById("bag").classList.remove("show");
+  document.getElementById("shop").classList.remove("show");
+  document.getElementById("scrim").classList.remove("show");
+}
+function openSide(id){
+  closeSides();
+  if (id==="shop") renderShop();
+  if (id==="bag") renderBag();
+  document.getElementById(id).classList.add("show");
+  document.getElementById("scrim").classList.add("show");
+}
+
+function tagToggle(selected, max=4) {
+  return INTERESTS.map(t => `<button type="button" class="tag ${selected.includes(t)?"on":""}" data-tag="${t}">${t}</button>`).join("");
+}
+function bindTagPick(box, selected, max=4) {
+  box.querySelectorAll("[data-tag]").forEach(b => b.onclick = () => {
+    const t = b.dataset.tag;
+    if (selected.includes(t)) selected.splice(selected.indexOf(t),1);
+    else if (selected.length < max) selected.push(t);
+    box.innerHTML = tagToggle(selected, max);
+    bindTagPick(box, selected, max);
+  });
+}
+
+function authView() {
+  const likes = [];
+  app.innerHTML = `
+    <p class="eyebrow">ArturGames</p><h1>${t("playToEnter")}</h1>
+    <div class="tabs"><button class="tab on" data-auth="in">${t("login")}</button><button class="tab" data-auth="up">${t("signup")}</button></div>
+    <form id="auth-form">
+      <input class="field" name="name" placeholder="${t("name")}" style="display:none" />
+      <input class="field" name="email" type="email" required placeholder="${t("email")}" />
+      <input class="field" name="pass" type="password" required minlength="4" placeholder="${t("pass")}" />
+      <div id="likes-box" class="hidden"><p class="muted">${t("likesHelp")}</p><div id="likes">${tagToggle(likes)}</div></div>
+      <button class="cta" style="width:100%" type="submit">${t("login")}</button>
+      <p class="err" id="auth-err"></p>
+    </form>`;
+  nav.innerHTML = "";
+  let mode="in";
+  bindTagPick(document.getElementById("likes"), likes);
+  app.querySelectorAll("[data-auth]").forEach(b => b.onclick = () => {
+    mode=b.dataset.auth;
+    app.querySelectorAll("[data-auth]").forEach(x=>x.classList.toggle("on",x===b));
+    app.querySelector("[name=name]").style.display = mode==="up"?"block":"none";
+    document.getElementById("likes-box").classList.toggle("hidden", mode!=="up");
+    app.querySelector(".cta").textContent = mode==="up"?t("signup"):t("login");
+  });
+  document.getElementById("auth-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const email=String(fd.get("email")).trim().toLowerCase();
+    const pass=String(fd.get("pass"));
+    const name=(String(fd.get("name")||"").trim()||email.split("@")[0]).slice(0,18);
+    const err=document.getElementById("auth-err"); err.textContent="Aguarde…";
+    try {
+      const hash=await hashPass(email,pass);
+      if (mode==="up") {
+        if (!likes.length) throw new Error(t("needTag"));
+        let exists=null; try{ exists=(await db("get",T.users,email))?.value; }catch{}
+        if (exists) throw new Error(t("emailUsed"));
+        me=freshUser(email,name,hash,likes.slice());
+        await saveMe();
+      } else {
+        const u=(await db("get",T.users,email))?.value;
+        if(!u||u.passHash!==hash) throw new Error(t("badLogin"));
+        me=u; me.notes=me.notes||[]; me.backpack.packs=me.backpack.packs||{emoji:0,denselands:0,hillfight:0};
+        applyDaily(me); await saveMe();
       }
-    ];
+      localStorage.setItem("ag_session", JSON.stringify({email:me.email,id:me.id}));
+      applyTheme(); render();
+    } catch(ex){ err.textContent=ex.message; }
+  };
+}
 
-    const grid = document.getElementById("grid");
-    const search = document.getElementById("search");
-    const count = document.getElementById("count");
-    const overlay = document.getElementById("overlay");
-    const sheet = document.getElementById("sheet");
-    let openId = null;
+function navBar() {
+  const items=[["casa","🏠 "+t("home")],["jogos","🎮 "+t("games")],["comunidade","👥 "+t("community")],["amigos","💬 "+t("friends")],["eu","⚙️ "+t("me")],["mercado","🛒 "+t("market")]];
+  nav.innerHTML=items.map(([id,l])=>`<button class="${view===id?"on":""}" data-view="${id}">${l}</button>`).join("");
+  nav.querySelectorAll("button").forEach(b=>b.onclick=()=>{ view=b.dataset.view; chatWith=null; render(); });
+}
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({
-        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
-      }[c]));
-    }
+async function installedSet(){
+  const set=new Set(me?.installed||[]);
+  if("caches" in window){ for(const g of GAMES){ const c=await caches.open(cacheName(g.id)); if(await c.match(playUrl(g.id))) set.add(g.id); } }
+  return set;
+}
+async function gameStats(){
+  try{ const map={}; listOf(await db("list",T.games)).forEach(({key,value})=>map[key]=value||{}); return map; }catch{ return {}; }
+}
+async function allPosts(){
+  try{ return listOf(await db("list",T.posts)).map(x=>x.value).filter(Boolean).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); }
+  catch{ return []; }
+}
 
-    function cardHTML(game) {
-      const tags = game.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
-      return `
-        <article class="card" data-id="${escapeHtml(game.id)}" tabindex="0" role="button">
-          <div class="art">
-            <div class="art-fallback"></div>
-            <img class="cover" src="${escapeHtml(game.card)}" alt="" onerror="this.style.display='none'" />
-            <div class="icon-wrap"><img src="${escapeHtml(game.icon)}" alt="" /></div>
-            <span class="badge">${escapeHtml(game.genre)}</span>
-          </div>
-          <div class="body">
-            <div class="title-row">
-              <h2>${escapeHtml(game.title)}</h2>
-              <span class="diff-pill">${escapeHtml(game.difficulty)}</span>
-            </div>
-            <div class="tags">${tags}</div>
-            <p class="blurb">${escapeHtml(game.short)}</p>
-            <div class="foot"><span>Toque para ver mais</span><span>↗</span></div>
-          </div>
-        </article>
-      `;
-    }
+async function casaView(){
+  const posts=await allPosts();
+  const have=await installedSet();
+  const suggest=GAMES.find(g => (me.likesTags||[]).some(t=>g.tags.includes(t)) && !have.has(g.id)) || GAMES[0];
+  const notes=(me.notes||[]).slice(0,4);
+  app.innerHTML=`
+    <p class="eyebrow">Casa</p><h1>Início</h1>${hud()}
+    <h2>Avisos</h2>
+    ${notes.length?notes.map(n=>`<div class="item">${escapeHtml(n.text)}</div>`).join(""):`<p class="muted">Sem avisos novos.</p>`}
+    <h2>Desafios</h2>
+    <div class="item">5 min de jogo ${me.daily.claimed.play?"✓":"—"} · 3 likes ${me.daily.likes}/3 · 1 post ${me.daily.posted?"✓":"—"}</div>
+    <h2>Sugestão</h2>
+    <article class="card" data-game="${suggest.id}">
+      <div class="art"><img src="${suggest.base}card.png" /></div>
+      <div class="pad"><div class="name-row"><img class="icon" src="${suggest.base}icon.svg" /><b>${suggest.title}</b></div></div>
+    </article>
+    <h2>Posts recentes</h2>
+    ${posts.slice(0,5).map(postHTML).join("")||`<p class="muted">Nada ainda.</p>`}`;
+  app.querySelector("[data-game]")?.addEventListener("click",()=>openGame(suggest.id));
+  bindPosts();
+}
 
-    function scaleHTML(current) {
-      return DIFFS.map(d => `<span class="${d === current ? "on" : ""}">${d}</span>`).join("");
-    }
-
-    function sheetHTML(game) {
-      return `
-        <div class="hero">
-          <img src="${escapeHtml(game.card)}" alt="Cena de ${escapeHtml(game.title)}" onerror="this.style.display='none'" />
-          <div class="hero-fade"></div>
-          <button class="close" type="button" data-close aria-label="Fechar">×</button>
+async function jogosView(){
+  const have=await installedSet();
+  const stats=await gameStats();
+  let list=GAMES.map(g=>({...g,downloads:stats[g.id]?.downloads||0}));
+  if(jogosTab==="meus") list=list.filter(g=>have.has(g.id));
+  if(jogosTab==="populares") list.sort((a,b)=>b.downloads-a.downloads);
+  const q=(document.getElementById("q")?.value||"").toLowerCase();
+  if(jogosTab==="procurar") list=GAMES.filter(g=>(g.title+" "+g.tags.join(" ")).toLowerCase().includes(q));
+  app.innerHTML=`
+    <p class="eyebrow">Biblioteca</p><h1>Jogos</h1>${hud()}
+    <div class="tabs">
+      <button class="tab ${jogosTab==="meus"?"on":""}" data-jt="meus">Meus jogos</button>
+      <button class="tab ${jogosTab==="procurar"?"on":""}" data-jt="procurar">Procurar</button>
+      <button class="tab ${jogosTab==="populares"?"on":""}" data-jt="populares">Populares</button>
+    </div>
+    ${jogosTab==="procurar"?`<input class="field" id="q" placeholder="Nome ou tag" />`:""}
+    <div class="grid" style="margin-top:12px">${list.map(g=>`
+      <article class="card" data-game="${g.id}">
+        <div class="art"><img src="${g.base}card.png" /></div>
+        <div class="pad">
+          <div class="name-row"><img class="icon" src="${g.base}icon.svg" /><b>${g.title}</b></div>
+          <div class="muted">${have.has(g.id)?"baixado":"não baixado"}</div>
         </div>
-        <div class="sheet-body">
-          <div class="sheet-head">
-            <img src="${escapeHtml(game.icon)}" alt="" />
-            <div>
-              <h2>${escapeHtml(game.title)}</h2>
-              <p>ArturGames · ${escapeHtml(game.genre)}</p>
-            </div>
-          </div>
-          <div class="scale">${scaleHTML(game.difficulty)}</div>
-          <p class="sheet-text">${escapeHtml(game.long)}</p>
-          <div class="meta">
-            <div>Tags: ${game.tags.map(escapeHtml).join(" · ")}</div>
-            <div>Controles: ${escapeHtml(game.controls)}</div>
-            <div>Ano: ${escapeHtml(game.year)}</div>
-          </div>
-          <button class="cta" type="button" data-play="${escapeHtml(game.id)}">Jogar agora</button>
-          <p class="cta-note">Clique de novo neste destaque para abrir o jogo</p>
-        </div>
-      `;
-    }
+      </article>`).join("")||`<p class="muted">Nenhum jogo aqui.</p>`}</div>`;
+  app.querySelectorAll("[data-jt]").forEach(b=>b.onclick=()=>{jogosTab=b.dataset.jt;jogosView();});
+  const qel=document.getElementById("q"); if(qel) qel.oninput=()=>jogosView();
+  app.querySelectorAll("[data-game]").forEach(c=>c.onclick=()=>openGame(c.dataset.game));
+}
 
-    function render(list) {
-      count.textContent = list.length === 1 ? "1 jogo" : `${list.length} jogos`;
-      grid.innerHTML = list.length ? list.map(cardHTML).join("") : `<p class="empty">Nenhum jogo encontrado.</p>`;
-    }
+async function openGame(id){
+  const g=GAMES.find(x=>x.id===id);
+  let local=0, inst=false, desc="--";
+  try{
+    const c=await caches.open(cacheName(id));
+    inst=Boolean(await c.match(playUrl(id)));
+    if(inst) for(const k of await c.keys()) local+=(await (await c.match(k)).arrayBuffer()).byteLength;
+  }catch{}
+  try{ const fj=await fetch(new URL("files.json",g.base)).then(r=>r.ok?r.json():null); if(fj?.description||fj?.desc) desc=fj.description||fj.desc; }catch{}
+  overlay.classList.add("show");
+  sheet.innerHTML=`
+    <div class="name-row"><img class="icon" src="${g.base}icon.svg" /><h2 style="margin:0">${g.title}</h2></div>
+    <div class="hero-card"><img src="${g.base}card.png" /></div>
+    <p class="muted">${escapeHtml(desc)}</p>
+    <p class="muted">Preço ${g.price||"grátis"} · 1 energia para baixar/apagar</p>
+    <p class="muted">Neste aparelho: ${inst?fmt(local):"não baixado"}</p>
+    <div class="row" style="margin-top:10px">
+      ${inst?`<button class="cta" data-play>Jogar</button><button class="danger" data-del>Apagar</button>`:`<button class="cta" data-dl>Baixar</button>`}
+      <button class="ghost" id="close-sheet">Fechar</button>
+    </div><p class="err" id="gerr"></p>`;
+  document.getElementById("close-sheet").onclick=()=>overlay.classList.remove("show");
+  sheet.querySelector("[data-play]")?.addEventListener("click",()=>startPlay(id));
+  sheet.querySelector("[data-dl]")?.addEventListener("click",()=>downloadGame(g));
+  sheet.querySelector("[data-del]")?.addEventListener("click",()=>deleteGame(g));
+}
 
-    function filtered() {
-      const q = search.value.trim().toLowerCase();
-      if (!q) return GAMES;
-      return GAMES.filter(g =>
-        [g.title, g.short, g.long, g.genre, g.difficulty, ...(g.tags || [])]
-          .join(" ")
-          .toLowerCase()
-          .includes(q)
-      );
-    }
+async function downloadGame(g){
+  const err=document.getElementById("gerr"); err.textContent="Baixando…";
+  try{
+    await spendEnergy(1);
+    const cache=await caches.open(cacheName(g.id));
+    let html=await (await fetch(new URL("index.html",g.base))).text();
+    html=html.replace(/navigator\.serviceWorker\.register\s*\(/g,"false && navigator.serviceWorker.register(");
+    await cache.put(playUrl(g.id), new Response(html,{headers:{"Content-Type":"text/html; charset=utf-8"}}));
+    try{ const ic=await fetch(new URL("icon.svg",g.base)); await cache.put(playUrl(g.id,"icon.svg"), new Response(await ic.arrayBuffer(),{headers:{"Content-Type":"image/svg+xml"}})); }catch{}
+    await cache.put("__meta.json", new Response(JSON.stringify({id:g.id,base:g.base,keep:g.keep,files:g.files,lastUsed:{}}),{headers:{"Content-Type":"application/json"}}));
+    if(!me.installed.includes(g.id)) me.installed.push(g.id);
+    await saveMe();
+    overlay.classList.remove("show"); render();
+  }catch(ex){ err.textContent=ex.message; }
+}
+async function deleteGame(g){
+  try{ await spendEnergy(1); await caches.delete(cacheName(g.id)); me.installed=(me.installed||[]).filter(x=>x!==g.id); await saveMe(); overlay.classList.remove("show"); render(); }
+  catch(ex){ document.getElementById("gerr").textContent=ex.message; }
+}
+function startPlay(id){
+  if(guardBan()) return;
+  playingId=id; playStart=Date.now(); holdMs=0;
+  document.getElementById("frame").src=playUrl(id);
+  document.getElementById("player").classList.add("show");
+  overlay.classList.remove("show");
+  document.documentElement.requestFullscreen?.().catch(()=>{});
+}
 
-    function openGame(id) {
-      const game = GAMES.find(g => g.id === id);
-      if (game?.url) window.open(game.url, "_blank", "noopener");
-    }
+async function comunidadeView(){
+  const posts=await allPosts();
+  const filter=document.getElementById("ptag")?.value || "";
+  const shown=filter?posts.filter(p=>(p.tags||[]).includes(filter)):posts;
+  const tags=["",...INTERESTS];
+  const pTags=[];
+  app.innerHTML=`
+    <p class="eyebrow">Pessoas</p><h1>Comunidade</h1>${hud()}
+    <div class="post">
+      <select class="field" id="pgame">${GAMES.map(g=>`<option value="${g.id}">${g.title}</option>`)}</select>
+      <textarea class="field" id="ptext" maxlength="280" placeholder="Fale de um jogo"></textarea>
+      <input class="field" id="pimg" type="file" accept="image/*" />
+      <p class="muted">Até 4 tags</p>
+      <div id="ptags">${tagToggle(pTags)}</div>
+      <button class="cta" id="ppost">Publicar · 1 energia</button>
+      <p class="err" id="perr"></p>
+    </div>
+    <div class="tabs">${tags.map(t=>`<button class="tab ${filter===t?"on":""}" data-ft="${t}">${t||"todos"}</button>`).join("")}</div>
+    <div id="feed">${shown.map(postHTML).join("")||"<p class='muted'>Nenhum post.</p>"}</div>`;
+  bindTagPick(document.getElementById("ptags"), pTags);
+  document.getElementById("pimg").onchange=async (e)=>{
+    const f=e.target.files?.[0]; if(!f) return;
+    postImage=await compressImage(f);
+  };
+  document.getElementById("ppost").onclick=()=>createPost(pTags);
+  app.querySelectorAll("[data-ft]").forEach(b=>b.onclick=()=>{ const sel=document.getElementById("ptag"); comunidadeViewAfter(b.dataset.ft); });
+  bindPosts();
+}
+async function comunidadeViewAfter(filter){
+  const posts=await allPosts();
+  const shown=filter?posts.filter(p=>(p.tags||[]).includes(filter)):posts;
+  document.getElementById("feed").innerHTML=shown.map(postHTML).join("")||"<p class='muted'>Nenhum post.</p>";
+  app.querySelectorAll("[data-ft]").forEach(b=>b.classList.toggle("on", b.dataset.ft===filter));
+  bindPosts();
+}
 
-    function closeOverlay() {
-      openId = null;
-      overlay.classList.remove("show");
-      overlay.setAttribute("aria-hidden", "true");
-      document.body.classList.remove("lock");
-    }
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const c=document.createElement("canvas"); let w=img.width,h=img.height,max=720;
+      if(w>max){ h=h*max/w; w=max; }
+      c.width=w; c.height=h; c.getContext("2d").drawImage(img,0,0,w,h);
+      resolve(c.toDataURL("image/jpeg",0.72));
+    };
+    img.onerror=reject; img.src=url;
+  });
+}
 
-    function openOverlay(id) {
-      const game = GAMES.find(g => g.id === id);
-      if (!game) return;
-      openId = id;
-      sheet.innerHTML = sheetHTML(game);
-      overlay.classList.add("show");
-      overlay.setAttribute("aria-hidden", "false");
-      document.body.classList.add("lock");
-    }
+function commentsTree(list, parentId=null){
+  return (list||[]).filter(c=>(c.parentId||null)===parentId).map(c=>`
+    <div class="cmt"><b>${escapeHtml(c.authorName)}</b> ${escapeHtml(c.text)}
+      <div class="row"><button class="ghost" data-reply="${c.id}">Responder</button><button class="ghost" data-rep-cmt="${c.id}">Reportar</button></div>
+      ${commentsTree(list,c.id)}</div>`).join("");
+}
+function postHTML(p){
+  const game=GAMES.find(g=>g.id===p.gameId);
+  const liked=(p.likes||[]).includes(me.id);
+  return `<article class="post" data-post="${p.id}">
+    <b>${escapeHtml(p.authorName)}</b> · <span class="muted">${game?game.title:""}</span>
+    <div class="row">${(p.tags||[]).map(t=>`<span class="tag">${t}</span>`).join("")}</div>
+    <p style="margin:8px 0">${escapeHtml(p.text||"")}</p>
+    ${p.image?`<img class="att" src="${p.image}" alt="" />`:""}
+    ${(p.stickers||[]).length?`<div class="stickers">${p.stickers.map(s=>stkIcon(s.stickerId)).join("")}</div>`:""}
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" data-like="${p.id}">${liked?"★":"☆"} ${(p.likes||[]).length}</button>
+      <button class="ghost" data-cmt="${p.id}">Comentar</button>
+      <button class="ghost" data-st="${p.id}">Sticker</button>
+      <button class="ghost" data-rep-post="${p.id}">Reportar</button>
+    </div>
+    <div class="muted">${commentsTree(p.comments||[])}</div>
+  </article>`;
+}
+function bindPosts(){
+  document.querySelectorAll("[data-like]").forEach(b=>b.onclick=()=>likePost(b.dataset.like));
+  document.querySelectorAll("[data-cmt]").forEach(b=>b.onclick=()=>commentPost(b.dataset.cmt,null));
+  document.querySelectorAll("[data-reply]").forEach(b=>{ const post=b.closest("[data-post]"); b.onclick=()=>commentPost(post.dataset.post,b.dataset.reply); });
+  document.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>stickerOnPost(b.dataset.st));
+  document.querySelectorAll("[data-rep-post]").forEach(b=>b.onclick=()=>reportThing("post",b.dataset.repPost));
+  document.querySelectorAll("[data-rep-cmt]").forEach(b=>{ const post=b.closest("[data-post]"); b.onclick=()=>reportThing("comment",b.dataset.repCmt,post?.dataset.post); });
+}
+async function createPost(tags){
+  if(guardBan()) return;
+  const err=document.getElementById("perr");
+  try{
+    const text=cleanText(document.getElementById("ptext").value.trim());
+    if(text.length<2) throw new Error(t("writeSomething"));
+    await spendEnergy(1);
+    const post={ id:crypto.randomUUID(), authorId:me.id, authorName:me.name, gameId:document.getElementById("pgame").value,
+      text:text.slice(0,280), image:postImage||"", tags:(tags||[]).slice(0,4), createdAt:Date.now(), likes:[], comments:[], stickers:[] };
+    await db("set",T.posts,post.id,post);
+    postImage=""; me.daily.posted=true; if(!me.daily.claimed.post){ me.daily.claimed.post=true; me.coins+=10; } await saveMe();
+    view="comunidade"; render();
+  }catch(ex){ err.textContent=ex.message; }
+}
+async function loadPost(id){ return (await db("get",T.posts,id))?.value; }
+async function likePost(id){
+  const p=await loadPost(id); p.likes=p.likes||[];
+  if(p.likes.includes(me.id)) p.likes=p.likes.filter(x=>x!==me.id);
+  else { p.likes.push(me.id); me.daily.likes+=1; if(me.daily.likes>=3&&!me.daily.claimed.likes){ me.daily.claimed.likes=true; me.coins+=8; } await saveMe(); }
+  await db("set",T.posts,id,p); render();
+}
+async function commentPost(id,parentId){
+  if(guardBan()) return;
+  const text=await uiText(parentId?"Responder":"Comentar","texto");
+  if(!text) return;
+  const p=await loadPost(id); p.comments=p.comments||[];
+  p.comments.push({ id:crypto.randomUUID(), parentId:parentId||null, authorId:me.id, authorName:me.name, text:cleanText(text).slice(0,140), createdAt:Date.now() });
+  await db("set",T.posts,id,p);
+  const target=parentId?(p.comments.find(c=>c.id===parentId)||{}).authorId:p.authorId;
+  if(target&&target!==me.id) await notify(target,{type:"comment",text:`${me.name} comentou.`});
+  render();
+}
+async function stickerOnPost(id){
+  if(guardBan()) return;
+  if(!(me.backpack.stickers||[]).length) return toast("Sem figurinhas.");
+  const pick=await pickSticker(); if(!pick) return;
+  try{
+    await spendEnergy(1);
+    const ix=me.backpack.stickers.findIndex(s=>(typeof s==="string"?s:`${s.id}#${s.shine||""}`)===(typeof pick==="string"?pick:pick.id));
+    if(ix>=0) me.backpack.stickers.splice(ix,1); await saveMe();
+    const p=await loadPost(id); p.stickers=p.stickers||[]; p.stickers.push({stickerId:pick,from:me.id});
+    await db("set",T.posts,id,p);
+    if(p.authorId!==me.id) await notify(p.authorId,{type:"sticker",text:`${me.name} colou uma figurinha.`});
+    render();
+  }catch(ex){ toast(ex.message); }
+}
+async function pickSticker(){
+  const counts={}; (me.backpack.stickers||[]).forEach(it=>{ const k=typeof it==="string"?it:`${it.id}#${it.shine||""}`; counts[k]=(counts[k]||0)+1; });
+  const ids=Object.keys(counts); if(!ids.length) return null;
+  const item=await uiPick(t("sticker"), ids.map(id=>({id,label:`${stk(parseStk(id).id).n}${parseStk(id).shine?" "+parseStk(id).shine:""} (${counts[id]})`})));
+  return item?.id||null;
+}
+async function reportThing(kind,targetId,postId){
+  if(guardBan()) return;
+  const picked=await uiPick(t("report"), REPORT_REASONS.map(r=>({id:r,label:t(r)})));
+  if(!picked) return;
+  let targetUser=null;
+  if(kind==="post") targetUser=(await loadPost(targetId))?.authorId;
+  else targetUser=((await loadPost(postId))?.comments||[]).find(c=>c.id===targetId)?.authorId;
+  if(!targetUser||targetUser===me.id) return toast(t("cantReport"));
+  const u=await userById(targetUser); if(!u) return;
+  const day=today();
+  u.reportsLog=u.reportsLog||[];
+  u.reportsLog.push({ from:me.id, reason:picked.id, day, at:Date.now() });
+  const same=u.reportsLog.filter(x=>x.reason===picked.id && x.day===day).length;
+  if(same>=BAN_AT) u.banned=true;
+  await saveUser(u);
+  await notify(targetUser,{type:"report",text:u.banned?t("banned"):`${t("report")}: ${t(picked.id)}`});
+  toast(t("reportSent"));
+}
 
-    grid.addEventListener("click", (e) => {
-      const card = e.target.closest(".card");
-      if (!card) return;
-      openOverlay(card.dataset.id);
-    });
+async function amigosView(){
+  let people=[]; try{ people=listOf(await db("list",T.pub)).map(x=>x.value).filter(p=>p&&p.id!==me.id); }catch{}
+  me.friends=me.friends||[]; me.reqIn=me.reqIn||[]; me.reqOut=me.reqOut||[];
+  const friends=people.filter(p=>me.friends.includes(p.id));
+  const others=people.filter(p=>!me.friends.includes(p.id)&&!me.reqOut.includes(p.id));
+  app.innerHTML=`
+    <p class="eyebrow">Social</p><h1>Amigos</h1>${hud()}
+    <div class="tabs">
+      <button class="tab ${amigosTab==="achar"?"on":""}" data-at="achar">Encontrar</button>
+      <button class="tab ${amigosTab==="pedidos"?"on":""}" data-at="pedidos">Pedidos (${me.reqIn.length})</button>
+      <button class="tab ${amigosTab==="chat"?"on":""}" data-at="chat">Bate-papo</button>
+    </div>
+    <div id="abox"></div>`;
+  app.querySelectorAll("[data-at]").forEach(b=>b.onclick=()=>{amigosTab=b.dataset.at;amigosView();});
+  const box=document.getElementById("abox");
+  if(amigosTab==="achar"){
+    box.innerHTML=others.map(p=>`<div class="item"><b>${escapeHtml(p.name)}</b> <span class="muted">${(p.likesTags||[]).join(" · ")}</span><button class="cta" data-add="${p.id}">Pedir amizade</button></div>`).join("")||`<p class="muted">Ninguém novo.</p>`;
+    box.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>askFriend(b.dataset.add));
+  } else if(amigosTab==="pedidos"){
+    box.innerHTML=me.reqIn.map(id=>`<div class="item"><button class="cta" data-ok="${id}">Aceitar</button> <button class="ghost" data-no="${id}">Recusar</button></div>`).join("")||`<p class="muted">Sem pedidos.</p>`;
+    box.querySelectorAll("[data-ok]").forEach(b=>b.onclick=()=>acceptFriend(b.dataset.ok));
+    box.querySelectorAll("[data-no]").forEach(b=>b.onclick=()=>denyFriend(b.dataset.no));
+  } else {
+    if(!chatWith){
+      box.innerHTML=friends.map(p=>`<div class="item"><b>${escapeHtml(p.name)}</b><button class="cta" data-ch="${p.id}">Abrir</button></div>`).join("")||`<p class="muted">Faça um amigo primeiro.</p>`;
+      box.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>{chatWith=b.dataset.ch;amigosView();});
+    } else await renderChat(box, chatWith);
+  }
+}
+function chatId(a,b){ return [a,b].sort().join("_"); }
+async function renderChat(box, otherId){
+  const id=chatId(me.id,otherId);
+  let chat=(await db("get",T.chats,id).catch(()=>null))?.value || { id, users:[me.id,otherId], messages:[] };
+  const now=Date.now();
+  chat.messages=(chat.messages||[]).filter(m=>now-m.at<MSG_TTL);
+  const other=await userById(otherId);
+  box.innerHTML=`<button class="ghost" id="backf">Voltar</button><h2>${escapeHtml(other?.name||"amigo")}</h2>
+    <p class="muted">Mensagens somem em 3 dias.</p>
+    <div class="chat-log">${chat.messages.map(m=>`<div class="bubble"><b>${m.from===me.id?"você":escapeHtml(other?.name||"")}</b> ${escapeHtml(m.text)}</div>`).join("")||"<p class='muted'>Vazio</p>"}</div>
+    <input class="field" id="cmsg" placeholder="Mensagem" /><button class="cta" id="csend">Enviar</button>`;
+  document.getElementById("backf").onclick=()=>{chatWith=null;amigosView();};
+  document.getElementById("csend").onclick=async()=>{
+    const text=document.getElementById("cmsg").value.trim(); if(!text) return;
+    chat.messages.push({id:crypto.randomUUID(),from:me.id,text:cleanText(text).slice(0,200),at:Date.now()});
+    await db("set",T.chats,id,chat);
+    await notify(otherId,{type:"chat",text:`${me.name} mandou mensagem.`});
+    renderChat(box, otherId);
+  };
+}
+async function askFriend(id){
+  const u=await userById(id); if(!u) return;
+  me.reqOut=me.reqOut||[]; if(!me.reqOut.includes(id)) me.reqOut.push(id);
+  u.reqIn=u.reqIn||[]; if(!u.reqIn.includes(me.id)) u.reqIn.push(me.id);
+  await saveMe(); await saveUser(u); await notify(id,{type:"friend",text:`${me.name} pediu amizade.`});
+  toast("Pedido enviado."); amigosView();
+}
+async function acceptFriend(id){
+  const u=await userById(id); if(!u) return;
+  me.friends=[...new Set([...(me.friends||[]),id])]; me.reqIn=(me.reqIn||[]).filter(x=>x!==id);
+  u.friends=[...new Set([...(u.friends||[]),me.id])]; u.reqOut=(u.reqOut||[]).filter(x=>x!==me.id);
+  await saveMe(); await saveUser(u); await notify(id,{type:"friend",text:`${me.name} aceitou a amizade.`});
+  amigosView();
+}
+async function denyFriend(id){ me.reqIn=(me.reqIn||[]).filter(x=>x!==id); await saveMe(); amigosView(); }
 
-    grid.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      const card = e.target.closest(".card");
-      if (!card) return;
-      e.preventDefault();
-      openOverlay(card.dataset.id);
-    });
+function euView(){
+  app.innerHTML=`
+    <p class="eyebrow">Ajustes</p><h1>Eu</h1>${hud()}
+    <div class="tabs">
+      <button class="tab ${euTab==="pessoal"?"on":""}" data-et="pessoal">Pessoal</button>
+      <button class="tab ${euTab==="tema"?"on":""}" data-et="tema">Tema</button>
+      <button class="tab ${euTab==="comunidade"?"on":""}" data-et="comunidade">Comunidade</button>
+    </div>
+    <div id="ebox"></div>`;
+  app.querySelectorAll("[data-et]").forEach(b=>b.onclick=()=>{euTab=b.dataset.et;euView();});
+  const box=document.getElementById("ebox");
+  if(euTab==="pessoal"){
+    const todayMin=me.daily?.playMin||0;
+    const totalMs=Object.values(me.playMs||{}).reduce((a,b)=>a+b,0)+todayMin*60000;
+    const totalMin=Math.floor(totalMs/60000);
+    box.innerHTML=`
+      <div class="item"><b>${t("name")}</b><p class="muted">${escapeHtml(me.name)}</p></div>
+      <div class="item"><b>${t("email")}</b><p class="muted">${escapeHtml(me.email)}</p></div>
+      <div class="item"><b>${t("todayPlay")}</b><p class="muted">${todayMin} min</p></div>
+      <div class="item"><b>${t("totalPlay")}</b><p class="muted">${Math.floor(totalMin/60)}h ${totalMin%60}min</p></div>
+      <div class="item"><b>${t("reports")}</b><p class="muted">${(me.reportsLog||[]).length}</p></div>
+      ${me.banned?`<p class="err">${t("banned")}</p>`:""}
+      <button class="danger" id="logout">${t("logout")}</button>`;
+    document.getElementById("logout").onclick=()=>{ localStorage.removeItem("ag_session"); me=null; render(); };
+  } else if(euTab==="tema"){
+    box.innerHTML=`<div class="item"><b>${t("howSee")}</b>
+      <button class="cta" id="theme">${me.theme?.light?t("dark"):t("light")}</button></div>
+      <div class="item"><b>${t("language")}</b>
+        <button class="tab ${lang==="pt"?"on":""}" data-lang="pt">Português</button>
+        <button class="tab ${lang==="en"?"on":""}" data-lang="en">English</button>
+      </div>
+      <div class="item"><b>${t("play")}</b><p class="muted">${t("exitHelp")}</p></div>`;
+    document.getElementById("theme").onclick=async()=>{ me.theme=me.theme||{}; me.theme.light=!me.theme.light; await saveMe(); applyTheme(); euView(); };
+    box.querySelectorAll("[data-lang]").forEach(b=>b.onclick=async()=>{ lang=b.dataset.lang; me.theme=me.theme||{}; me.theme.lang=lang; localStorage.setItem("ag_lang",lang); await saveMe(); applyTheme(); render(); });
+  } else {
+    const tags=(me.likesTags||[]).slice();
+    box.innerHTML=`<div class="item"><b>Como te veem</b>
+      <p class="muted">Bio e tags públicas</p>
+      <textarea class="field" id="bio" placeholder="Bio">${escapeHtml(me.bio||"")}</textarea>
+      <div id="ctags">${tagToggle(tags)}</div>
+      <button class="cta" id="savep">Salvar perfil</button></div>
+      <div class="item"><b>Prévia</b><p><b>${escapeHtml(me.name)}</b></p><p class="muted">${escapeHtml(me.bio||"—")}</p><div class="row">${(me.likesTags||[]).map(t=>`<span class="tag">${t}</span>`).join("")}</div></div>`;
+    bindTagPick(document.getElementById("ctags"), tags);
+    document.getElementById("savep").onclick=async()=>{ me.bio=document.getElementById("bio").value.slice(0,160); me.likesTags=tags.slice(0,4); await saveMe(); toast("Perfil salvo."); euView(); };
+  }
+}
 
-    overlay.addEventListener("click", (e) => {
-      if (e.target.closest("[data-close]")) {
-        closeOverlay();
-        return;
-      }
-      if (e.target.closest("[data-play]")) {
-        openGame(e.target.closest("[data-play]").dataset.play);
-        return;
-      }
-      if (e.target.closest(".sheet") && openId) {
-        openGame(openId);
-      }
-    });
+function shopHTML(){
+  const left=me.lastFreeOrb? Math.max(0, ORB_FREE_MS-(Date.now()-me.lastFreeOrb)) : 0;
+  const hrs=Math.ceil(left/3600000);
+  return `
+    <h2>${t("shop")}</h2>${hud()}
+    <div class="item"><b>${t("freeOrb")}</b>
+      <button class="cta" id="free-orb">${t("takeFree")}${left?` (${hrs}h)`:""}</button></div>
+    <div class="item"><b>${t("emergency")}</b><p class="muted">${EMERGENCY_COST} ${t("coins")}</p>
+      <button class="cta" id="emerg">${t("recharge")}</button></div>
+    <h2>${t("packs")}</h2>
+    ${PACKS.map(p=>`<div class="item"><b>${p.n}</b><p class="muted">${p.price} ${t("coins")}</p>
+      <button class="cta" data-pack="${p.id}">${t("buyPack")}</button></div>`).join("")}
+    <h2>${t("frames")}</h2>
+    ${FRAMES.map(f=>`<div class="item"><b>${f.n}</b><p class="muted">${f.price?f.price+" "+t("coins"):t("free")} ${me.avatar.frame===f.id?"·":""}</p>
+      <button class="${me.avatar.frame===f.id?"ghost":"cta"}" data-fr="${f.id}">${me.avatar.frame===f.id?t("equipped"):t("buy")}</button></div>`).join("")}`;
+}
+function bindShop(root){
+  root.querySelector("#free-orb")?.addEventListener("click", takeFreeOrb);
+  root.querySelector("#emerg")?.addEventListener("click", emergencyOrb);
+  root.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>buyPack(b.dataset.pack));
+  root.querySelectorAll("[data-fr]").forEach(b=>b.onclick=()=>buyFrame(b.dataset.fr));
+}
+function renderShop(){
+  const el=document.getElementById("shop");
+  el.innerHTML=shopHTML();
+  bindShop(el);
+}
+function mercadoView(){
+  app.innerHTML=`<p class="eyebrow">${t("shop")}</p><h1>${t("market")}</h1>${shopHTML()}`;
+  bindShop(app);
+}
+async function takeFreeOrb(){
+  if(me.energy>=ENERGY_MAX) return toast(t("energyFull"));
+  if(me.lastFreeOrb && Date.now()-me.lastFreeOrb<ORB_FREE_MS) return toast(t("waitOrb"));
+  me.energy=Math.min(ENERGY_MAX, me.energy+1);
+  me.lastFreeOrb=Date.now();
+  await saveMe(); toast("+1"); render();
+}
+async function emergencyOrb(){
+  if(me.coins<EMERGENCY_COST) return toast(t("coinsLow"));
+  me.coins-=EMERGENCY_COST;
+  me.energy=Math.min(ENERGY_MAX, me.energy+5);
+  await saveMe(); toast("+5"); render();
+}
+async function buyPack(id){
+  const p=PACKS.find(x=>x.id===id); if(!p) return;
+  if(me.coins<p.price) return toast(t("coinsLow"));
+  me.coins-=p.price; me.backpack.packs[id]=(me.backpack.packs[id]||0)+1; await saveMe();
+  toast(t("packBag"));
+}
+async function buyFrame(id){
+  const f=FRAMES.find(x=>x.id===id); if(me.avatar.frame===id) return;
+  if(me.coins<f.price) return toast(t("coinsLow"));
+  me.coins-=f.price; me.avatar.frame=id; await saveMe();
+  if(view==="mercado") mercadoView(); else renderShop();
+}
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeOverlay();
-    });
+function renderBag(){
+  const packs=me.backpack.packs||{};
+  document.getElementById("bag").innerHTML=`
+    <h2>${t("bag")}</h2>
+    ${PACKS.map(p=>`<div class="item"><b>${p.n}</b> × ${packs[p.id]||0}
+      <button class="cta" data-op="${p.id}" ${(packs[p.id]||0)?"":"disabled"}>${t("open")}</button></div>`).join("")}
+    <h2>Stickers</h2>
+    <div class="stickers">${(me.backpack.stickers||[]).map(s=>stkIcon(s)).join("")||`<span class="muted">${t("empty")}</span>`}</div>
+    <button class="ghost" id="send-stk">${t("sendStk")}</button>`;
+  document.getElementById("bag").querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>openPack(b.dataset.op));
+  document.getElementById("send-stk").onclick=sendSticker;
+}
+function rollShine(){
+  if (Math.random() > 0.1) return "";
+  return Math.random() < 0.5 ? "gold" : "silver";
+}
+async function openPack(id){
+  const p=PACKS.find(x=>x.id===id); if(!p||!(me.backpack.packs[id]>0)) return;
+  me.backpack.packs[id]-=1;
+  const got=[];
+  for(let i=0;i<3;i++){
+    const sid=p.stickers[Math.floor(Math.random()*p.stickers.length)];
+    const shine=rollShine();
+    const item=shine?`${sid}#${shine}`:sid;
+    me.backpack.stickers.push(item);
+    got.push(item);
+  }
+  if(!me.daily.claimed.pack){ me.daily.claimed.pack=true; me.coins+=5; }
+  await saveMe();
+  const shiny=got.map(parseStk).filter(x=>x.shine);
+  openModal(`<h2>${t("packOpen")}</h2><div class="stickers">${got.map(stkIcon).join("")}</div>
+    <p class="muted">${shiny.map(s=>s.shine==="gold"?t("shinyGold"):t("shinySilver")).join(" · ")}</p>
+    <button class="cta" id="mok">${t("ok")}</button>`);
+  document.getElementById("mok").onclick=()=>{ closeModal(); renderBag(); };
+}
+async function sendSticker(){
+  if(guardBan()) return;
+  if(!(me.backpack.stickers||[]).length) return toast("Sem figurinhas.");
+  let people=[]; try{ people=listOf(await db("list",T.pub)).map(x=>x.value).filter(p=>p&&p.id!==me.id); }catch{}
+  const who=await uiPick("Enviar para", people.map(p=>({id:p.id,label:p.name}))); if(!who) return;
+  const pick=await pickSticker(); if(!pick) return;
+  try{
+    await spendEnergy(1);
+    const ix=me.backpack.stickers.findIndex(s=>(typeof s==="string"?s:`${s.id}#${s.shine||""}`)===(typeof pick==="string"?pick:pick.id));
+    if(ix>=0) me.backpack.stickers.splice(ix,1); await saveMe();
+    await db("set",T.mail,crypto.randomUUID(),{to:who.id,from:me.id,fromName:me.name,stickerId:pick,createdAt:Date.now()});
+    await notify(who.id,{type:"gift",text:`${me.name} te enviou uma figurinha.`});
+    toast("Enviado."); renderBag();
+  }catch(ex){ toast(ex.message); }
+}
+function renderNotes(){
+  const notes=me.notes||[];
+  openModal(`<h2>Avisos</h2>${notes.map(n=>`<div class="item">${escapeHtml(n.text)}</div>`).join("")||"<p class='muted'>Nada</p>"}<button class="cta" id="mok">Ok</button>`);
+  document.getElementById("mok").onclick=async()=>{ (me.notes||[]).forEach(n=>n.read=true); await saveMe(); refreshBadge(); closeModal(); };
+}
 
-    search.addEventListener("input", () => render(filtered()));
-    render(GAMES);
-  </script>
+async function render(){
+  document.body.classList.toggle("logged", Boolean(me));
+  applyTheme(); closeSides();
+  if(!me){ nav.innerHTML=""; return authView(); }
+  navBar(); refreshBadge();
+  if(view==="casa") return casaView();
+  if(view==="jogos") return jogosView();
+  if(view==="comunidade") return comunidadeView();
+  if(view==="amigos") return amigosView();
+  if(view==="mercado") return mercadoView();
+  return euView();
+}
+
+document.getElementById("btn-shop").onclick=()=>openSide("shop");
+document.getElementById("btn-bag").onclick=()=>{ renderBag(); document.getElementById("bag").classList.add("show"); document.getElementById("scrim").classList.add("show"); };
+document.getElementById("btn-notes").onclick=renderNotes;
+document.getElementById("scrim").onclick=closeSides;
+document.getElementById("modal-bg").addEventListener("click",e=>{ if(e.target.id==="modal-bg") closeModal(); });
+overlay.addEventListener("click",e=>{ if(e.target===overlay) overlay.classList.remove("show"); });
+
+function tickHold(){
+  if(!playingId) return;
+  holdMs+=200;
+  const hint=document.getElementById("exit-hint");
+  hint.style.display="block";
+  hint.textContent=`${t("holdExit")} ${Math.min(5,(holdMs/1000)).toFixed(1)}s`;
+  if(holdMs>=5000){ hint.style.display="none"; holdMs=0; stopPlay(); }
+}
+function startHold(){ if(holdTimer) return; holdMs=0; holdTimer=setInterval(tickHold,200); }
+function endHold(){ clearInterval(holdTimer); holdTimer=0; holdMs=0; document.getElementById("exit-hint").style.display="none"; }
+
+window.addEventListener("keydown", e=>{
+  if(!playingId) return;
+  if(e.code==="ShiftLeft") shifts.left=true;
+  if(e.code==="ShiftRight") shifts.right=true;
+  if(shifts.left && shifts.right) startHold();
+});
+window.addEventListener("keyup", e=>{
+  if(e.code==="ShiftLeft") shifts.left=false;
+  if(e.code==="ShiftRight") shifts.right=false;
+  if(!(shifts.left&&shifts.right)) endHold();
+});
+document.getElementById("player").addEventListener("touchstart", e=>{
+  if(playingId && e.touches.length>=6) startHold();
+}, {passive:true});
+document.getElementById("player").addEventListener("touchend", e=>{
+  if(e.touches.length<6) endHold();
+});
+
+async function stopPlay(){
+  document.getElementById("frame").src="about:blank";
+  document.getElementById("player").classList.remove("show");
+  if(playingId&&playStart){
+    const min=Math.floor((Date.now()-playStart)/60000);
+    if(min>0){ me.daily.playMin+=min; me.coins+=Math.min(15,min); if(me.daily.playMin>=5&&!me.daily.claimed.play){ me.daily.claimed.play=true; me.coins+=10; } await saveMe(); }
+    navigator.serviceWorker?.controller?.postMessage({type:"evict",id:playingId});
+  }
+  playingId=null;
+  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+}
+
+async function boot(){
+  if(location.protocol!=="file:" && "serviceWorker" in navigator){ try{ await navigator.serviceWorker.register("sw.js"); }catch{} }
+  const sess=JSON.parse(localStorage.getItem("ag_session")||"null");
+  if(sess?.email){
+    try{
+      const r=await db("get",T.users,sess.email);
+      if(r?.value){ me=r.value; me.notes=me.notes||[]; me.backpack.packs=me.backpack.packs||{emoji:0,denselands:0,hillfight:0}; applyDaily(me); await saveMe(); }
+    }catch{}
+  }
+  applyTheme(); render();
+}
+boot();
+</script>
 </body>
 </html>

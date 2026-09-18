@@ -197,7 +197,11 @@ const I18N = {
     reason:"Motivo", spam:"spam", inappropriate:"conteúdo impróprio", harassment:"assédio", cheat:"trapaça",
     reportSent:"Report enviado.", cantReport:"Não dá para reportar.",
     open:"Abrir", sendStk:"Enviar · 1 energia", energy:"energia", coins:"moedas",
-    noEnergy:"Sem energia.", shinyGold:"Brilhante ouro!", shinySilver:"Brilhante prata!"
+    noEnergy:"Sem energia.", shinyGold:"Brilhante ouro!", shinySilver:"Brilhante prata!",
+    forgot:"Esqueci a senha", sendCode:"Enviar código", resetPass:"Redefinir senha",
+    newPass:"Nova senha", code:"Código do e-mail", resetSent:"Se o e-mail existir, o código foi enviado.",
+    badCode:"Código inválido ou vencido.", passChanged:"Senha alterada. Entre de novo.",
+    resetHelp:"Digite o e-mail da conta. O código vale 20 minutos."
   },
   en: {
     home:"Home", games:"Games", community:"Community", friends:"Friends", me:"Me", market:"Market",
@@ -226,7 +230,11 @@ const I18N = {
     reason:"Reason", spam:"spam", inappropriate:"inappropriate", harassment:"harassment", cheat:"cheating",
     reportSent:"Report sent.", cantReport:"Can't report that.",
     open:"Open", sendStk:"Send · 1 energy", energy:"energy", coins:"coins",
-    noEnergy:"No energy.", shinyGold:"Gold shiny!", shinySilver:"Silver shiny!"
+    noEnergy:"No energy.", shinyGold:"Gold shiny!", shinySilver:"Silver shiny!",
+    forgot:"Forgot password", sendCode:"Send code", resetPass:"Reset password",
+    newPass:"New password", code:"Code from email", resetSent:"If that email exists, a code was sent.",
+    badCode:"Invalid or expired code.", passChanged:"Password changed. Log in again.",
+    resetHelp:"Enter the account email. The code lasts 20 minutes."
   }
 };
 let lang = localStorage.getItem("ag_lang") || "pt";
@@ -402,15 +410,38 @@ function bindTagPick(box, selected, max=4) {
   });
 }
 
+async function sendResetEmail(email, code) {
+  const body = lang==="en"
+    ? `Your ArturGames reset code is ${code}. It expires in 20 minutes.`
+    : `Seu código ArturGames para redefinir a senha é ${code}. Vale por 20 minutos.`;
+  try {
+    await sb.auth.signInWithOtp({ email, options:{ shouldCreateUser:true } });
+  } catch {}
+  try {
+    await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(email), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ name:"ArturGames", _subject:"ArturGames", message: body })
+    });
+  } catch {}
+}
+
 function authView() {
   const likes = [];
   app.innerHTML = `
     <p class="eyebrow">ArturGames</p><h1>${t("playToEnter")}</h1>
-    <div class="tabs"><button class="tab on" data-auth="in">${t("login")}</button><button class="tab" data-auth="up">${t("signup")}</button></div>
+    <div class="tabs">
+      <button class="tab on" data-auth="in">${t("login")}</button>
+      <button class="tab" data-auth="up">${t("signup")}</button>
+      <button class="tab" data-auth="reset">${t("forgot")}</button>
+    </div>
     <form id="auth-form">
       <input class="field" name="name" placeholder="${t("name")}" style="display:none" />
       <input class="field" name="email" type="email" required placeholder="${t("email")}" />
-      <input class="field" name="pass" type="password" required minlength="4" placeholder="${t("pass")}" />
+      <input class="field" name="pass" type="password" minlength="4" placeholder="${t("pass")}" />
+      <input class="field hidden" name="code" inputmode="numeric" maxlength="8" placeholder="${t("code")}" />
+      <input class="field hidden" name="npass" type="password" minlength="4" placeholder="${t("newPass")}" />
+      <p class="muted hidden" id="reset-help">${t("resetHelp")}</p>
       <div id="likes-box" class="hidden"><p class="muted">${t("likesHelp")}</p><div id="likes">${tagToggle(likes)}</div></div>
       <button class="cta" style="width:100%" type="submit">${t("login")}</button>
       <p class="err" id="auth-err"></p>
@@ -418,21 +449,66 @@ function authView() {
   nav.innerHTML = "";
   let mode="in";
   bindTagPick(document.getElementById("likes"), likes);
-  app.querySelectorAll("[data-auth]").forEach(b => b.onclick = () => {
-    mode=b.dataset.auth;
-    app.querySelectorAll("[data-auth]").forEach(x=>x.classList.toggle("on",x===b));
-    app.querySelector("[name=name]").style.display = mode==="up"?"block":"none";
+  const form=document.getElementById("auth-form");
+  const passEl=form.querySelector("[name=pass]");
+  const codeEl=form.querySelector("[name=code]");
+  const npassEl=form.querySelector("[name=npass]");
+  const helpEl=document.getElementById("reset-help");
+  function setMode(next){
+    mode=next;
+    app.querySelectorAll("[data-auth]").forEach(x=>x.classList.toggle("on", x.dataset.auth===next));
+    form.querySelector("[name=name]").style.display = mode==="up"?"block":"none";
     document.getElementById("likes-box").classList.toggle("hidden", mode!=="up");
-    app.querySelector(".cta").textContent = mode==="up"?t("signup"):t("login");
-  });
-  document.getElementById("auth-form").onsubmit = async (e) => {
+    passEl.classList.toggle("hidden", mode==="reset");
+    passEl.required = mode!=="reset";
+    codeEl.classList.toggle("hidden", mode!=="reset");
+    npassEl.classList.toggle("hidden", mode!=="reset");
+    helpEl.classList.toggle("hidden", mode!=="reset");
+    form.querySelector(".cta").textContent = mode==="up"?t("signup"):mode==="reset"?t("resetPass"):t("login");
+  }
+  app.querySelectorAll("[data-auth]").forEach(b => b.onclick = () => setMode(b.dataset.auth));
+  form.onsubmit = async (e) => {
     e.preventDefault();
-    const fd=new FormData(e.target);
+    const fd=new FormData(form);
     const email=String(fd.get("email")).trim().toLowerCase();
-    const pass=String(fd.get("pass"));
+    const pass=String(fd.get("pass")||"");
     const name=(String(fd.get("name")||"").trim()||email.split("@")[0]).slice(0,18);
-    const err=document.getElementById("auth-err"); err.textContent="Aguarde…";
+    const err=document.getElementById("auth-err"); err.textContent=t("wait");
     try {
+      if (mode==="reset") {
+        const code=String(fd.get("code")||"").trim();
+        const npass=String(fd.get("npass")||"");
+        if (!code) {
+          let u=null; try{ u=(await db("get",T.users,email))?.value; }catch{}
+          if (u) {
+            const raw=String(Math.floor(100000+Math.random()*900000));
+            u.resetHash=await hashPass(email,"reset|"+raw);
+            u.resetUntil=Date.now()+20*60*1000;
+            await saveUser(u);
+            await sendResetEmail(email, raw);
+          }
+          err.textContent=t("resetSent");
+          return;
+        }
+        if (npass.length<4) throw new Error(t("newPass"));
+        const u=(await db("get",T.users,email))?.value;
+        if(!u||!u.resetHash||!u.resetUntil||Date.now()>u.resetUntil) throw new Error(t("badCode"));
+        const okHash=await hashPass(email,"reset|"+code);
+        let ok=u.resetHash===okHash;
+        if(!ok){
+          try{
+            const v=await sb.auth.verifyOtp({ email, token:code, type:"email" });
+            ok=!v.error;
+          }catch{}
+        }
+        if(!ok) throw new Error(t("badCode"));
+        u.passHash=await hashPass(email,npass);
+        u.resetHash=""; u.resetUntil=0;
+        await saveUser(u);
+        err.textContent=t("passChanged");
+        setMode("in");
+        return;
+      }
       const hash=await hashPass(email,pass);
       if (mode==="up") {
         if (!likes.length) throw new Error(t("needTag"));

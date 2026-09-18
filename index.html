@@ -285,7 +285,7 @@ function freshUser(email, name, passHash, likesTags) {
     createdAt: Date.now(), energy: ENERGY_MAX, energyDay: today(), coins: 40,
     lastLoginDay: today(), lastPackDay: today(),
     backpack: { packs: { emoji:1, denselands:0, hillfight:0 }, stickers: [] },
-    avatar: { frame:"default" }, installed: [], playMs: {}, notes: [],
+    avatar: { frame:"default" }, installed: [], playMs: {}, playTotalMs:0, streakDays:0, lastPlayDay:"", notes: [],
     banned:false, reportCount:0, reportsLog:[], lastFreeOrb:0, likesTags, bio:"", theme:{ light:false, lang:"pt" },
     friends: [], reqIn: [], reqOut: [],
     daily: { day: today(), playMin:0, likes:0, posted:false, pack:false, claimed:{} }
@@ -339,12 +339,31 @@ function uiPick(title, items) {
   });
 }
 function guardBan(){ if(me?.banned){ toast("Conta suspensa."); return true; } return false; }
+function yesterday(){
+  const d=new Date(); d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+function formatPlay(ms){
+  const s=Math.max(0, Math.floor((ms||0)/1000));
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  if(h) return `${h}h ${m}min ${sec}s`;
+  if(m) return `${m}min ${sec}s`;
+  return `${sec}s`;
+}
+function bumpStreak(){
+  const d=today();
+  if(me.lastPlayDay===d) return;
+  me.streakDays = me.lastPlayDay===yesterday() ? (me.streakDays||0)+1 : 1;
+  me.lastPlayDay=d;
+}
+function offenseScore(){ return (me.streakDays||0) * (me.coins||0) * 100; }
 function applyDaily(u){
   const d=today();
   if (u.energyDay!==d){ u.energy=ENERGY_MAX; u.energyDay=d; }
   if (u.lastPackDay!==d){ u.lastPackDay=d; u.backpack.packs=u.backpack.packs||{}; u.backpack.packs.emoji=(u.backpack.packs.emoji||0)+1; }
   u.lastLoginDay=d;
-  if (u.daily?.day!==d) u.daily={ day:d, playMin:0, likes:0, posted:false, pack:false, claimed:{} };
+  if (u.lastPlayDay && u.lastPlayDay!==d && u.lastPlayDay!==yesterday()) u.streakDays=0;
+  if (u.daily?.day!==d) u.daily={ day:d, playMin:0, playMs:0, likes:0, posted:false, pack:false, claimed:{} };
 }
 async function spendEnergy(n=1){ if(!me||me.energy<n) throw new Error(t("noEnergy")); me.energy-=n; await saveMe(); }
 function applyTheme(){
@@ -355,7 +374,7 @@ function applyTheme(){
 function hud(){
   if(!me) return "";
   const orbs = Array.from({length:ENERGY_MAX}, (_,i)=>`<span class="orb ${i<me.energy?"":"off"}"></span>`).join("");
-  return `<div class="hud"><span class="orbs">${orbs}</span><span>${t("energy")} <b>${me.energy}/${ENERGY_MAX}</b></span><span>${t("coins")} <b>${me.coins}</b></span></div>`;
+  return `<div class="hud"><span class="orbs">${orbs}</span><span>${t("energy")} <b>${me.energy}/${ENERGY_MAX}</b></span><span>${t("coins")} <b>${me.coins}</b></span><span>${t("streak")} <b>${me.streakDays||0}</b> ${t("days")} · ${offenseScore()}</span></div>`;
 }
 function closeSides(){
   document.getElementById("bag").classList.remove("show");
@@ -463,6 +482,7 @@ async function casaView(){
     ${notes.length?notes.map(n=>`<div class="item">${escapeHtml(n.text)}</div>`).join(""):`<p class="muted">Sem avisos novos.</p>`}
     <h2>Desafios</h2>
     <div class="item">5 min de jogo ${me.daily.claimed.play?"✓":"—"} · 3 likes ${me.daily.likes}/3 · 1 post ${me.daily.posted?"✓":"—"}</div>
+    <div class="item"><b>${t("streak")}</b> ${me.streakDays||0} ${t("days")} · ${offenseScore()}</div>
     <h2>Sugestão</h2>
     <article class="card" data-game="${suggest.id}">
       <div class="art"><img src="${suggest.base}card.png" /></div>
@@ -551,10 +571,14 @@ async function deleteGame(g){
 function startPlay(id){
   if(guardBan()) return;
   playingId=id; playStart=Date.now(); holdMs=0;
-  document.getElementById("frame").src=playUrl(id);
+  shifts.left=false; shifts.right=false; endHold();
+  const frame=document.getElementById("frame");
+  frame.src=playUrl(id);
   document.getElementById("player").classList.add("show");
   overlay.classList.remove("show");
   document.documentElement.requestFullscreen?.().catch(()=>{});
+  frame.onload=()=>hookPlayEvents();
+  setTimeout(hookPlayEvents, 400);
 }
 
 async function comunidadeView(){
@@ -786,14 +810,12 @@ function euView(){
   app.querySelectorAll("[data-et]").forEach(b=>b.onclick=()=>{euTab=b.dataset.et;euView();});
   const box=document.getElementById("ebox");
   if(euTab==="pessoal"){
-    const todayMin=me.daily?.playMin||0;
-    const totalMs=Object.values(me.playMs||{}).reduce((a,b)=>a+b,0)+todayMin*60000;
-    const totalMin=Math.floor(totalMs/60000);
     box.innerHTML=`
       <div class="item"><b>${t("name")}</b><p class="muted">${escapeHtml(me.name)}</p></div>
       <div class="item"><b>${t("email")}</b><p class="muted">${escapeHtml(me.email)}</p></div>
-      <div class="item"><b>${t("todayPlay")}</b><p class="muted">${todayMin} min</p></div>
-      <div class="item"><b>${t("totalPlay")}</b><p class="muted">${Math.floor(totalMin/60)}h ${totalMin%60}min</p></div>
+      <div class="item"><b>${t("todayPlay")}</b><p class="muted">${formatPlay(me.daily?.playMs||0)}</p></div>
+      <div class="item"><b>${t("totalPlay")}</b><p class="muted">${formatPlay(me.playTotalMs||Object.values(me.playMs||{}).reduce((a,b)=>a+b,0))}</p></div>
+      <div class="item"><b>${t("streak")}</b><p class="muted">${me.streakDays||0} ${t("days")} · ${t("streakScore")} ${offenseScore()} <span class="muted">(dias × moedas × 100)</span></p></div>
       <div class="item"><b>${t("reports")}</b><p class="muted">${(me.reportsLog||[]).length}</p></div>
       ${me.banned?`<p class="err">${t("banned")}</p>`:""}
       <button class="danger" id="logout">${t("logout")}</button>`;
@@ -954,45 +976,76 @@ document.getElementById("scrim").onclick=closeSides;
 document.getElementById("modal-bg").addEventListener("click",e=>{ if(e.target.id==="modal-bg") closeModal(); });
 overlay.addEventListener("click",e=>{ if(e.target===overlay) overlay.classList.remove("show"); });
 
+function markShift(e, down){
+  if(e.code==="ShiftLeft" || e.key==="Shift" && e.location===1) shifts.left=down;
+  if(e.code==="ShiftRight" || e.key==="Shift" && e.location===2) shifts.right=down;
+  if(e.code==="ShiftLeft") shifts.left=down;
+  if(e.code==="ShiftRight") shifts.right=down;
+  if(shifts.left && shifts.right) startHold();
+  else endHold();
+}
 function tickHold(){
-  if(!playingId) return;
+  if(!playingId){ endHold(); return; }
   holdMs+=200;
   const hint=document.getElementById("exit-hint");
   hint.style.display="block";
-  hint.textContent=`${t("holdExit")} ${Math.min(5,(holdMs/1000)).toFixed(1)}s`;
-  if(holdMs>=5000){ hint.style.display="none"; holdMs=0; stopPlay(); }
+  hint.textContent=`${t("holdExit")} ${Math.min(5,holdMs/1000).toFixed(1)}s`;
+  if(holdMs>=5000){ hint.style.display="none"; holdMs=0; clearInterval(holdTimer); holdTimer=0; stopPlay(); }
 }
-function startHold(){ if(holdTimer) return; holdMs=0; holdTimer=setInterval(tickHold,200); }
-function endHold(){ clearInterval(holdTimer); holdTimer=0; holdMs=0; document.getElementById("exit-hint").style.display="none"; }
+function startHold(){ if(holdTimer || !playingId) return; holdMs=0; holdTimer=setInterval(tickHold,200); }
+function endHold(){ clearInterval(holdTimer); holdTimer=0; holdMs=0; const h=document.getElementById("exit-hint"); if(h) h.style.display="none"; }
 
-window.addEventListener("keydown", e=>{
-  if(!playingId) return;
-  if(e.code==="ShiftLeft") shifts.left=true;
-  if(e.code==="ShiftRight") shifts.right=true;
-  if(shifts.left && shifts.right) startHold();
-});
-window.addEventListener("keyup", e=>{
-  if(e.code==="ShiftLeft") shifts.left=false;
-  if(e.code==="ShiftRight") shifts.right=false;
-  if(!(shifts.left&&shifts.right)) endHold();
-});
-document.getElementById("player").addEventListener("touchstart", e=>{
-  if(playingId && e.touches.length>=6) startHold();
-}, {passive:true});
-document.getElementById("player").addEventListener("touchend", e=>{
-  if(e.touches.length<6) endHold();
-});
+function onPlayKeyDown(e){ if(!playingId) return; markShift(e,true); }
+function onPlayKeyUp(e){ if(!playingId) return; markShift(e,false); }
+function onPlayTouchStart(e){ if(playingId && e.touches.length>=6) startHold(); else if(playingId && e.touches.length<6) endHold(); }
+function onPlayTouchEnd(e){ if(e.touches.length<6) endHold(); }
+
+function hookPlayEvents(){
+  const frame=document.getElementById("frame");
+  const add=(target)=>{
+    if(!target || target.__agExit) return;
+    target.__agExit=true;
+    target.addEventListener("keydown", onPlayKeyDown, true);
+    target.addEventListener("keyup", onPlayKeyUp, true);
+    target.addEventListener("touchstart", onPlayTouchStart, {passive:true, capture:true});
+    target.addEventListener("touchend", onPlayTouchEnd, {passive:true, capture:true});
+    target.addEventListener("touchcancel", onPlayTouchEnd, {passive:true, capture:true});
+  };
+  add(window); add(document);
+  try{
+    const doc=frame.contentDocument;
+    add(doc); add(doc.defaultView);
+  }catch{}
+}
+
+window.addEventListener("keydown", onPlayKeyDown, true);
+window.addEventListener("keyup", onPlayKeyUp, true);
+document.getElementById("player").addEventListener("touchstart", onPlayTouchStart, {passive:true});
+document.getElementById("player").addEventListener("touchend", onPlayTouchEnd, {passive:true});
 
 async function stopPlay(){
-  document.getElementById("frame").src="about:blank";
+  endHold();
+  shifts.left=false; shifts.right=false;
+  const id=playingId, started=playStart;
+  playingId=null; playStart=0;
   document.getElementById("player").classList.remove("show");
-  if(playingId&&playStart){
-    const min=Math.floor((Date.now()-playStart)/60000);
-    if(min>0){ me.daily.playMin+=min; me.coins+=Math.min(15,min); if(me.daily.playMin>=5&&!me.daily.claimed.play){ me.daily.claimed.play=true; me.coins+=10; } await saveMe(); }
-    navigator.serviceWorker?.controller?.postMessage({type:"evict",id:playingId});
+  try{ document.getElementById("frame").src="about:blank"; }catch{}
+  try{ if(document.fullscreenElement) await document.exitFullscreen(); }catch{}
+  if(id && started && me){
+    const elapsed=Math.max(0, Date.now()-started);
+    me.playMs=me.playMs||{};
+    me.playMs[id]=(me.playMs[id]||0)+elapsed;
+    me.playTotalMs=(me.playTotalMs||0)+elapsed;
+    me.daily=me.daily||{};
+    me.daily.playMs=(me.daily.playMs||0)+elapsed;
+    me.daily.playMin=Math.floor((me.daily.playMs||0)/60000);
+    const min=Math.floor(elapsed/60000);
+    if(min>0) me.coins+=Math.min(15,min);
+    if((me.daily.playMs>=5*60000) && !me.daily.claimed.play){ me.daily.claimed.play=true; me.coins+=10; }
+    bumpStreak();
+    try{ await saveMe(); }catch{}
+    navigator.serviceWorker?.controller?.postMessage({type:"evict",id});
   }
-  playingId=null;
-  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
 }
 
 async function boot(){

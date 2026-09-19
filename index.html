@@ -135,10 +135,11 @@ const T = { users:"ag_users", pub:"ag_public", posts:"ag_posts", mail:"ag_mail",
 const ENERGY_MAX = 7, BAN_AT = 10, MSG_TTL = 3*24*60*60*1000, ORB_FREE_MS = 21*60*60*1000, EMERGENCY_COST = 45;
 const REPORT_REASONS = ["spam","inappropriate","harassment","cheat"];
 const BAD = /\b(porra|caralho|merda|puta|puto|bosta|fod[ae]|buceta|punheta|viado|cu\b|pênis|penis|porno|porn|sex|sexy|nudes|fuck|shit|bitch|asshole|dick|pussy|cunt|slut)\b/gi;
-const INTERESTS = ["rpg","sandbox","luta","ação","online","aventura","construção","ondas"];
+const INTERESTS = ["rpg","sandbox","luta","ação","online","aventura","construção","ondas","corrida"];
 const GAMES = [
   { id:"denselands", title:"DenseLands", base:"https://abs-js.github.io/DenseLands/", tags:["rpg","sandbox","construção"], genre:"RPG sandbox", difficulty:"suave", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png","manifest.json","service-worker.js","map.html","wiki.html"] },
-  { id:"hillfight", title:"Hill Fight", base:"https://abs-js.github.io/LoLg/", tags:["luta","ação","online","ondas"], genre:"Batalha online", difficulty:"rápido", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] }
+  { id:"hillfight", title:"Hill Fight", base:"https://abs-js.github.io/LoLg/", tags:["luta","ação","online","ondas"], genre:"Batalha online", difficulty:"rápido", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] },
+  { id:"driftmania", title:"DriftMania", base:"https://abs-js.github.io/driftmania/", tags:["corrida","ação"], genre:"Corrida de drift", difficulty:"rápido", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] }
 ];
 const svg = (inner) => `<svg viewBox="0 0 32 32">${inner}</svg>`;
 const STICKERS = [
@@ -157,11 +158,17 @@ const STICKERS = [
   { id:"sad", n:"Triste", pack:"emoji", svg: svg('<circle fill="#7aa0c8" cx="16" cy="16" r="12"/><circle cx="11" cy="14" r="2"/><circle cx="21" cy="14" r="2"/><path fill="none" stroke="#1a1406" stroke-width="2" d="M10 22c2-3 10-3 12 0"/>') },
   { id:"angry", n:"Raiva", pack:"emoji", svg: svg('<circle fill="#c44536" cx="16" cy="16" r="12"/><path d="M8 10l6 3M24 10l-6 3" stroke="#1a1406" stroke-width="2"/><circle cx="11" cy="15" r="2"/><circle cx="21" cy="15" r="2"/>') },
   { id:"wow", n:"Surpreso", pack:"emoji", svg: svg('<circle fill="#e6c15a" cx="16" cy="16" r="12"/><circle cx="11" cy="13" r="2"/><circle cx="21" cy="13" r="2"/><ellipse cx="16" cy="21" rx="3" ry="4"/>') },
-  { id:"cool", n:"Legal", pack:"emoji", svg: svg('<circle fill="#e6c15a" cx="16" cy="16" r="12"/><rect x="7" y="12" width="18" height="4" rx="2"/><path fill="none" stroke="#1a1406" d="M11 21h10"/>') }
+  { id:"cool", n:"Legal", pack:"emoji", svg: svg('<circle fill="#e6c15a" cx="16" cy="16" r="12"/><rect x="7" y="12" width="18" height="4" rx="2"/><path fill="none" stroke="#1a1406" d="M11 21h10"/>') },
+  { id:"dm_logo", n:"Logo DriftMania", pack:"driftmania", svg: svg('<rect width="32" height="32" rx="6" fill="#111"/><path fill="#3DDC84" d="M6 20h16l4-6H10z"/><circle fill="#e6c15a" cx="11" cy="22" r="3"/><circle fill="#e6c15a" cx="22" cy="22" r="3"/>') },
+  { id:"car", n:"Carro", pack:"driftmania", svg: svg('<path fill="#4a90d9" d="M6 18h20l-3-6H9z"/><rect x="7" y="18" width="18" height="4" fill="#2c3e50"/><circle cx="11" cy="23" r="3" fill="#222"/><circle cx="21" cy="23" r="3" fill="#222"/>') },
+  { id:"car2", n:"Esportivo", pack:"driftmania", svg: svg('<path fill="#c44536" d="M5 19l4-7h12l6 7z"/><circle cx="11" cy="22" r="3" fill="#111"/><circle cx="22" cy="22" r="3" fill="#111"/>') },
+  { id:"driftfire", n:"Fogo", pack:"driftmania", svg: svg('<path fill="#e07a3d" d="M16 4s6 6 6 12a6 6 0 11-12 0c0-4 4-8 6-12z"/><path fill="#e6c15a" d="M16 14s3 2 3 6a3 3 0 11-6 0c0-2 2-4 3-6z"/>') },
+  { id:"driftmark", n:"Marca de drift", pack:"driftmania", svg: svg('<path fill="none" stroke="#222" stroke-width="3" d="M4 24c6-2 8-10 14-12 4-1 8 2 10 6"/><path fill="none" stroke="#666" stroke-width="2" d="M4 27c7-1 10-8 16-10"/>') }
 ];
 const PACKS = [
   { id:"denselands", n:"Pack DenseLands", price:80, stickers:["dl_logo","scarf","slime","flower","crystal"] },
   { id:"hillfight", n:"Pack Hill Fight", price:80, stickers:["hf_logo","sword2","bow","mountain","swords_shield","coinchest"] },
+  { id:"driftmania", n:"Pack DriftMania", price:80, stickers:["dm_logo","car","car2","driftfire","driftmark"] },
   { id:"emoji", n:"Pack Emoji", price:35, stickers:["happy","sad","angry","wow","cool"] }
 ];
 const FRAMES = [
@@ -292,7 +299,7 @@ function freshUser(email, name, passHash, likesTags) {
     id: crypto.randomUUID(), email: email.toLowerCase(), name, passHash,
     createdAt: Date.now(), energy: ENERGY_MAX, energyDay: today(), coins: 40,
     lastLoginDay: today(), lastPackDay: today(),
-    backpack: { packs: { emoji:1, denselands:0, hillfight:0 }, stickers: [] },
+    backpack: { packs: { emoji:1, denselands:0, hillfight:0, driftmania:0 }, stickers: [] },
     avatar: { frame:"default" }, installed: [], playMs: {}, playTotalMs:0, streakDays:0, lastPlayDay:"", notes: [],
     banned:false, reportCount:0, reportsLog:[], lastFreeOrb:0, likesTags, bio:"", theme:{ light:false, lang:"pt" },
     friends: [], reqIn: [], reqOut: [],
@@ -360,11 +367,14 @@ function formatPlay(ms){
 }
 function bumpStreak(){
   const d=today();
-  if(me.lastPlayDay===d) return;
+  if(me.lastPlayDay===d) return 0;
   me.streakDays = me.lastPlayDay===yesterday() ? (me.streakDays||0)+1 : 1;
   me.lastPlayDay=d;
+  const gain = me.streakDays * 100;
+  me.coins += gain;
+  return gain;
 }
-function offenseScore(){ return (me.streakDays||0) * (me.coins||0) * 100; }
+function offenseScore(){ return (me.streakDays||0) * 100; }
 function applyDaily(u){
   const d=today();
   if (u.energyDay!==d){ u.energy=ENERGY_MAX; u.energyDay=d; }
@@ -519,7 +529,7 @@ function authView() {
       } else {
         const u=(await db("get",T.users,email))?.value;
         if(!u||u.passHash!==hash) throw new Error(t("badLogin"));
-        me=u; me.notes=me.notes||[]; me.backpack.packs=me.backpack.packs||{emoji:0,denselands:0,hillfight:0};
+        me=u; me.notes=me.notes||[]; me.backpack.packs=me.backpack.packs||{emoji:0,denselands:0,hillfight:0,driftmania:0};
         applyDaily(me); await saveMe();
       }
       localStorage.setItem("ag_session", JSON.stringify({email:me.email,id:me.id}));
@@ -891,7 +901,7 @@ function euView(){
       <div class="item"><b>${t("email")}</b><p class="muted">${escapeHtml(me.email)}</p></div>
       <div class="item"><b>${t("todayPlay")}</b><p class="muted">${formatPlay(me.daily?.playMs||0)}</p></div>
       <div class="item"><b>${t("totalPlay")}</b><p class="muted">${formatPlay(me.playTotalMs||Object.values(me.playMs||{}).reduce((a,b)=>a+b,0))}</p></div>
-      <div class="item"><b>${t("streak")}</b><p class="muted">${me.streakDays||0} ${t("days")} · ${t("streakScore")} ${offenseScore()} <span class="muted">(dias × moedas × 100)</span></p></div>
+      <div class="item"><b>${t("streak")}</b><p class="muted">${me.streakDays||0} ${t("days")} · +${offenseScore()} ${t("coins")} (dias × 100)</p></div>
       <div class="item"><b>${t("reports")}</b><p class="muted">${(me.reportsLog||[]).length}</p></div>
       ${me.banned?`<p class="err">${t("banned")}</p>`:""}
       <button class="danger" id="logout">${t("logout")}</button>`;
@@ -1130,7 +1140,7 @@ async function boot(){
   if(sess?.email){
     try{
       const r=await db("get",T.users,sess.email);
-      if(r?.value){ me=r.value; me.notes=me.notes||[]; me.backpack.packs=me.backpack.packs||{emoji:0,denselands:0,hillfight:0}; applyDaily(me); await saveMe(); }
+      if(r?.value){ me=r.value; me.notes=me.notes||[]; me.backpack.packs=me.backpack.packs||{emoji:0,denselands:0,hillfight:0,driftmania:0}; applyDaily(me); await saveMe(); }
     }catch{}
   }
   applyTheme(); render();

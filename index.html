@@ -186,7 +186,7 @@ const I18N = {
     downloaded:"baixado", notDownloaded:"não baixado", play:"Jogar", del:"Apagar", download:"Baixar", close:"Fechar",
     price:"Preço", free:"grátis", energyCost:"1 energia para baixar/apagar", onDevice:"Neste aparelho",
     start:"Início", alerts:"Avisos", noAlerts:"Sem avisos novos.", challenges:"Desafios", suggest:"Sugestão", recent:"Posts recentes",
-    people:"Pessoas", talkGame:"Fale de um jogo", upTo4:"Até 4 tags", publish:"Publicar · 1 energia", all:"todos", noPosts:"Nenhum post.",
+    people:"Pessoas", talkGame:"Fale de um jogo", upTo4:"Até 4 tags", publish:"Publicar · 1 energia", all:"todos", allGames:"Todos", catalog:"Catálogo", noPosts:"Nenhum post.",
     writeSomething:"Escreva algo.", comment:"Comentar", reply:"Responder", report:"Reportar", sticker:"Sticker",
     noStickers:"Sem figurinhas.", sent:"Enviado.", packOpen:"Pack aberto", ok:"Ok", cancel:"Cancelar",
     social:"Social", find:"Encontrar", requests:"Pedidos", chat:"Bate-papo", askFriend:"Pedir amizade", accept:"Aceitar", deny:"Recusar",
@@ -219,7 +219,7 @@ const I18N = {
     downloaded:"downloaded", notDownloaded:"not downloaded", play:"Play", del:"Delete", download:"Download", close:"Close",
     price:"Price", free:"free", energyCost:"1 energy to download/delete", onDevice:"On this device",
     start:"Home", alerts:"Alerts", noAlerts:"No new alerts.", challenges:"Challenges", suggest:"Suggested", recent:"Recent posts",
-    people:"People", talkGame:"Talk about a game", upTo4:"Up to 4 tags", publish:"Post · 1 energy", all:"all", noPosts:"No posts.",
+    people:"People", talkGame:"Talk about a game", upTo4:"Up to 4 tags", publish:"Post · 1 energy", all:"all", allGames:"All", catalog:"Catalog", noPosts:"No posts.",
     writeSomething:"Write something.", comment:"Comment", reply:"Reply", report:"Report", sticker:"Sticker",
     noStickers:"No stickers.", sent:"Sent.", packOpen:"Pack opened", ok:"Ok", cancel:"Cancel",
     social:"Social", find:"Find", requests:"Requests", chat:"Chat", askFriend:"Add friend", accept:"Accept", deny:"Decline",
@@ -252,7 +252,7 @@ const app = document.getElementById("app");
 const nav = document.getElementById("nav");
 const overlay = document.getElementById("overlay");
 const sheet = document.getElementById("sheet");
-let view = "casa", jogosTab = "meus", euTab = "pessoal", amigosTab = "achar", chatWith = null;
+let view = "casa", jogosTab = "todos", euTab = "pessoal", amigosTab = "achar", chatWith = null;
 let me = null, playStart = 0, playingId = null, postImage = "";
 const shifts = { left:false, right:false };
 let holdTimer = 0, holdMs = 0;
@@ -560,7 +560,9 @@ async function allPosts(){
 async function casaView(){
   const posts=await allPosts();
   const have=await installedSet();
-  const suggest=GAMES.find(g => (me.likesTags||[]).some(t=>g.tags.includes(t)) && !have.has(g.id)) || GAMES[0];
+  const suggest=GAMES.find(g => !have.has(g.id) && (me.likesTags||[]).some(t=>g.tags.includes(t)))
+    || GAMES.find(g => !have.has(g.id))
+    || GAMES[0];
   const notes=(me.notes||[]).slice(0,4);
   app.innerHTML=`
     <p class="eyebrow">Casa</p><h1>Início</h1>${hud()}
@@ -589,11 +591,12 @@ async function jogosView(){
   const q=(document.getElementById("q")?.value||"").toLowerCase();
   if(jogosTab==="procurar") list=GAMES.filter(g=>(g.title+" "+g.tags.join(" ")).toLowerCase().includes(q));
   app.innerHTML=`
-    <p class="eyebrow">Biblioteca</p><h1>Jogos</h1>${hud()}
+    <p class="eyebrow">${t("catalog")}</p><h1>${t("games")}</h1>${hud()}
     <div class="tabs">
-      <button class="tab ${jogosTab==="meus"?"on":""}" data-jt="meus">Meus jogos</button>
-      <button class="tab ${jogosTab==="procurar"?"on":""}" data-jt="procurar">Procurar</button>
-      <button class="tab ${jogosTab==="populares"?"on":""}" data-jt="populares">Populares</button>
+      <button class="tab ${jogosTab==="todos"?"on":""}" data-jt="todos">${t("allGames")}</button>
+      <button class="tab ${jogosTab==="meus"?"on":""}" data-jt="meus">${t("myGames")}</button>
+      <button class="tab ${jogosTab==="procurar"?"on":""}" data-jt="procurar">${t("search")}</button>
+      <button class="tab ${jogosTab==="populares"?"on":""}" data-jt="populares">${t("popular")}</button>
     </div>
     ${jogosTab==="procurar"?`<input class="field" id="q" placeholder="Nome ou tag" />`:""}
     <div class="grid" style="margin-top:12px">${list.map(g=>`

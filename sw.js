@@ -4,7 +4,9 @@ const MAX_CACHE_BYTES = 20 * 1024 * 1024;
 const FALLBACK_FILES = {
   denselands: ["icon.svg", "card.png", "manifest.json", "service-worker.js", "map.html", "wiki.html"],
   hillfight: ["icon.svg", "card.png"],
-  driftmania: ["icon.svg", "card.png"]
+  driftmania: ["icon.svg", "card.png"],
+  wig: ["icon.svg", "card.png"],
+  crd: ["icon.svg", "card.png"]
 };
 
 self.addEventListener("install", (event) => {

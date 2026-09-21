@@ -1,7 +1,7 @@
 {
   "name": "ArturGames",
   "short_name": "ArturGames",
-  "start_url": "./jogos.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0a0f0e",
   "theme_color": "#0d1413",

@@ -619,18 +619,32 @@ function bindTagPick(box, selected, max=4) {
 
 async function sendResetEmail(email, code) {
   const body = lang==="en"
-    ? `Your ArturGames reset code is ${code}. It expires in 20 minutes.`
-    : `Seu código ArturGames para redefinir a senha é ${code}. Vale por 20 minutos.`;
-  try {
-    await sb.auth.signInWithOtp({ email, options:{ shouldCreateUser:true } });
-  } catch {}
+    ? `Your ArturGames reset code is ${code}. It expires in 20 minutes. Ignore other codes.`
+    : `Seu código ArturGames para redefinir a senha é ${code}. Vale por 20 minutos. Ignore outros códigos.`;
   try {
     await fetch("https://formsubmit.co/ajax/" + encodeURIComponent(email), {
       method:"POST",
       headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ name:"ArturGames", _subject:"ArturGames", message: body })
+      body: JSON.stringify({ name:"ArturGames", _subject:"ArturGames — código", message: body })
     });
   } catch {}
+}
+function digits(s){ return String(s||"").replace(/\D/g,""); }
+async function findUserForReset(email){
+  try{
+    const r=(await db("get",T.users,email))?.value;
+    if(r) return r;
+  }catch{}
+  try{
+    const all=listOf(await db("list",T.users));
+    return all.map(x=>x.value).find(v=>v && String(v.email||"").toLowerCase()===email) || null;
+  }catch{ return null; }
+}
+function nameMatches(u, uname){
+  const n=String(uname||"").trim().toLowerCase();
+  if(!n) return false;
+  const names=[u.name, u.email, String(u.email||"").split("@")[0]];
+  return names.some(x=>String(x||"").trim().toLowerCase()===n);
 }
 
 function newCaptcha(){
@@ -687,9 +701,9 @@ function authView() {
     };
   }
   function paintReset(){
-    let step=1, email="", uname="", cap=newCaptcha();
+    let step=1, email="", uname="", typedCode="", cap=newCaptcha();
+    const steps=`<p class="muted">${t("resetStep1")} → ${t("resetStep2")} → ${t("resetStep3")} → ${t("resetStep4")} → ${t("resetStep5")}</p>`;
     function draw(){
-      const steps=`<p class="muted">${t("resetStep1")} → ${t("resetStep2")} → ${t("resetStep3")} → ${t("resetStep4")} → ${t("resetStep5")}</p>`;
       if(step===1){
         box.innerHTML=`${steps}<h2>${t("resetStep1")}</h2>
           <input class="field" id="rname" placeholder="${t("user")}" value="${escapeHtml(uname)}" />
@@ -701,7 +715,9 @@ function authView() {
           if(!uname||!email.includes("@")) return document.getElementById("auth-err").textContent=t("badUserMail");
           step=2; cap=newCaptcha(); draw();
         };
-      } else if(step===2){
+        return;
+      }
+      if(step===2){
         box.innerHTML=`${steps}<h2>${t("resetStep2")}</h2>
           <div class="item"><b>${t("captcha")} ${cap.q} ?</b></div>
           <input class="field" id="rcap" inputmode="numeric" placeholder="${cap.q}" />
@@ -710,71 +726,67 @@ function authView() {
         document.getElementById("rcapnew").onclick=()=>{ cap=newCaptcha(); draw(); };
         document.getElementById("rnext").onclick=async()=>{
           const err=document.getElementById("auth-err");
-          if(document.getElementById("rcap").value.trim()!==cap.a){ err.textContent=t("badCaptcha"); cap=newCaptcha(); return; }
+          if(digits(document.getElementById("rcap").value)!==cap.a){ err.textContent=t("badCaptcha"); cap=newCaptcha(); draw(); return; }
           err.textContent=t("wait");
           try{
-            let u=null; try{ u=(await db("get",T.users,email))?.value; }catch{}
-            if(u && String(u.name||"").trim().toLowerCase()===uname.toLowerCase()){
-              const raw=String(Math.floor(100000+Math.random()*900000));
-              u.resetHash=await hashPass(email,"reset|"+raw);
-              u.resetUntil=Date.now()+20*60*1000;
-              await saveUser(u);
-              await sendResetEmail(email, raw);
-            }
+            const u=await findUserForReset(email);
+            if(!u || !nameMatches(u, uname)) throw new Error(t("badUserMail"));
+            email=String(u.email||email).toLowerCase();
+            const raw=String(Math.floor(100000+Math.random()*900000));
+            u.resetHash=await hashPass(email,"reset|"+raw);
+            u.resetUntil=Date.now()+20*60*1000;
+            await saveUser(u);
+            await sendResetEmail(email, raw);
             step=3; draw();
           }catch(ex){ err.textContent=ex.message; }
         };
-      } else if(step===3){
+        return;
+      }
+      if(step===3){
         box.innerHTML=`${steps}<h2>${t("resetStep3")}</h2>
           <p class="muted">${t("resetSent")}</p>
           <button class="cta" id="rnext">${t("next")}</button>`;
         document.getElementById("rnext").onclick=()=>{ step=4; draw(); };
-      } else if(step===4){
-        box.innerHTML=`${steps}<h2>${t("resetStep4")}</h2>
-          <input class="field" id="rcode" inputmode="numeric" maxlength="8" placeholder="${t("code")}" />
-          <button class="cta" id="rnext">${t("next")}</button><p class="err" id="auth-err"></p>`;
-        document.getElementById("rnext").onclick=()=>{
-          if(!document.getElementById("rcode").value.trim()) return document.getElementById("auth-err").textContent=t("badCode");
-          step=5; draw();
-        };
-      } else {
-        const code=document.getElementById("rcode")?document.getElementById("rcode").value.trim():paintReset._code;
-        box.innerHTML=`${steps}<h2>${t("resetStep5")}</h2>
-          <input class="field" id="rpass" type="password" minlength="4" placeholder="${t("newPass")}" />
-          <input class="field" id="rpass2" type="password" minlength="4" placeholder="${t("confirmPass")}" />
-          <button class="cta" id="rnext">${t("resetPass")}</button><p class="err" id="auth-err"></p>`;
-        document.getElementById("rnext").onclick=async()=>{
-          const err=document.getElementById("auth-err");
-          const p1=document.getElementById("rpass").value, p2=document.getElementById("rpass2").value;
-          if(p1.length<4) return err.textContent=t("newPass");
-          if(p1!==p2) return err.textContent=t("passMismatch");
-          err.textContent=t("wait");
-          try{
-            const typed=paintReset._code||"";
-            const u=(await db("get",T.users,email))?.value;
-            if(!u||!u.resetHash||!u.resetUntil||Date.now()>u.resetUntil) throw new Error(t("badCode"));
-            const okHash=await hashPass(email,"reset|"+typed);
-            let ok=u.resetHash===okHash;
-            if(!ok){ try{ const v=await sb.auth.verifyOtp({ email, token:typed, type:"email" }); ok=!v.error; }catch{} }
-            if(!ok) throw new Error(t("badCode"));
-            u.passHash=await hashPass(email,p1);
-            u.resetHash=""; u.resetUntil=0;
-            await saveUser(u);
-            await notify(u.id,{type:"login",text:lang==="en"?"Password changed":"Senha alterada"});
-            toast(t("passChanged"));
-            mode="in";
-            app.querySelectorAll("[data-auth]").forEach(x=>x.classList.toggle("on", x.dataset.auth==="in"));
-            paintLogin();
-          }catch(ex){ err.textContent=ex.message; }
-        };
+        return;
       }
       if(step===4){
+        box.innerHTML=`${steps}<h2>${t("resetStep4")}</h2>
+          <input class="field" id="rcode" inputmode="numeric" maxlength="8" placeholder="${t("code")}" value="${escapeHtml(typedCode)}" />
+          <button class="cta" id="rnext">${t("next")}</button><p class="err" id="auth-err"></p>`;
         document.getElementById("rnext").onclick=()=>{
-          const c=document.getElementById("rcode").value.trim();
-          if(!c) return document.getElementById("auth-err").textContent=t("badCode");
-          paintReset._code=c; step=5; draw();
+          typedCode=digits(document.getElementById("rcode").value);
+          if(typedCode.length<4) return document.getElementById("auth-err").textContent=t("badCode");
+          step=5; draw();
         };
+        return;
       }
+      box.innerHTML=`${steps}<h2>${t("resetStep5")}</h2>
+        <input class="field" id="rpass" type="password" minlength="4" placeholder="${t("newPass")}" />
+        <input class="field" id="rpass2" type="password" minlength="4" placeholder="${t("confirmPass")}" />
+        <button class="cta" id="rnext">${t("resetPass")}</button><p class="err" id="auth-err"></p>`;
+      document.getElementById("rnext").onclick=async()=>{
+        const err=document.getElementById("auth-err");
+        const p1=document.getElementById("rpass").value, p2=document.getElementById("rpass2").value;
+        if(p1.length<4) return err.textContent=t("newPass");
+        if(p1!==p2) return err.textContent=t("passMismatch");
+        if(!typedCode) return err.textContent=t("badCode");
+        err.textContent=t("wait");
+        try{
+          const u=await findUserForReset(email);
+          if(!u) throw new Error(t("badUserMail"));
+          if(!u.resetHash || !u.resetUntil || Date.now()>u.resetUntil) throw new Error(t("badCode"));
+          const want=await hashPass(String(u.email||email).toLowerCase(),"reset|"+typedCode);
+          if(u.resetHash!==want) throw new Error(t("badCode"));
+          u.passHash=await hashPass(String(u.email||email).toLowerCase(),p1);
+          u.resetHash=""; u.resetUntil=0;
+          await saveUser(u);
+          try{ await notify(u.id,{type:"login",text:lang==="en"?"Password changed":"Senha alterada"}); }catch{}
+          toast(t("passChanged"));
+          mode="in";
+          app.querySelectorAll("[data-auth]").forEach(x=>x.classList.toggle("on", x.dataset.auth==="in"));
+          paintLogin();
+        }catch(ex){ err.textContent=ex.message; }
+      };
     }
     draw();
   }

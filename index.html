@@ -202,7 +202,8 @@ let GAMES = [
   { id:"hillfight", title:"Hill Fight", base:"https://abs-js.github.io/LoLg/", tags:["luta","ação","online","ondas"], genre:"Batalha online", difficulty:"rápido", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] },
   { id:"driftmania", title:"DriftMania", base:"https://abs-js.github.io/driftmania/", tags:["corrida","ação"], genre:"Corrida de drift", difficulty:"rápido", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] },
   { id:"wig", title:"Wait it Grow", base:"https://abs-js.github.io/wig/", tags:["aventura"], genre:"Plantar e colher", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] },
-  { id:"crd", title:"CSRPWF", base:"https://abs-js.github.io/crd/", tags:["luta"], genre:"Cartas e batalha", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] }
+  { id:"crd", title:"CSRPWF", base:"https://abs-js.github.io/crd/", tags:["luta"], genre:"Cartas e batalha", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] },
+  { id:"blnn", title:"Don't let Fall", base:"https://abs-js.github.io/blnn/", tags:["ação","online"], genre:"Não deixe cair", price:0, keep:["index.html","icon.svg"], files:["icon.svg","card.png"] }
 ];
 const svg = (inner) => `<svg viewBox="0 0 32 32">${inner}</svg>`;
 const STICKERS = [
@@ -315,7 +316,7 @@ async function loadCatalog(){
         version: fj.version || "1.0.0",
         catalogVersion: row.lastUpdate || "1.0.0",
         catalogNew: Boolean(row.new),
-        as_new: fj.as_new || "",
+        as_new: fj.as_new || fj.asNew || "",
         description: fj.description || fj.desc || "--",
         hard: Boolean(fj.hard || /difícil|extremo|dificil/i.test(fj.difficulty||""))
       });
@@ -356,7 +357,12 @@ const I18N = {
     forgot:"Esqueci a senha", sendCode:"Enviar código", resetPass:"Redefinir senha",
     newPass:"Nova senha", code:"Código do e-mail", resetSent:"Se o e-mail existir, o código foi enviado.",
     badCode:"Código inválido ou vencido.", passChanged:"Senha alterada. Entre de novo.",
-    resetHelp:"Digite o e-mail da conta. O código vale 20 minutos."
+    resetHelp:"Passo a passo para redefinir.",
+    resetStep1:"1. Nome e e-mail", resetStep2:"2. Captcha", resetStep3:"3. Código no e-mail",
+    resetStep4:"4. Digite o código", resetStep5:"5. Nova senha",
+    next:"Continuar", captcha:"Quanto é", user:"Nome de usuário",
+    confirmPass:"Repetir senha", passMismatch:"As senhas não batem.", badCaptcha:"Captcha errado.",
+    badUserMail:"Nome ou e-mail não conferem."
   },
   en: {
     home:"Home", games:"Games", community:"Community", friends:"Friends", me:"Me", market:"Market",
@@ -389,7 +395,12 @@ const I18N = {
     forgot:"Forgot password", sendCode:"Send code", resetPass:"Reset password",
     newPass:"New password", code:"Code from email", resetSent:"If that email exists, a code was sent.",
     badCode:"Invalid or expired code.", passChanged:"Password changed. Log in again.",
-    resetHelp:"Enter the account email. The code lasts 20 minutes."
+    resetHelp:"Step by step reset.",
+    resetStep1:"1. Name and email", resetStep2:"2. Captcha", resetStep3:"3. Code in email",
+    resetStep4:"4. Enter the code", resetStep5:"5. New password",
+    next:"Continue", captcha:"What is", user:"Username",
+    confirmPass:"Repeat password", passMismatch:"Passwords do not match.", badCaptcha:"Wrong captcha.",
+    badUserMail:"Name or email does not match."
   }
 };
 let lang = localStorage.getItem("ag_lang") || "pt";
@@ -622,6 +633,10 @@ async function sendResetEmail(email, code) {
   } catch {}
 }
 
+function newCaptcha(){
+  const a=1+Math.floor(Math.random()*9), b=1+Math.floor(Math.random()*9);
+  return { q:`${a} + ${b}`, a:String(a+b) };
+}
 function authView() {
   const likes = [];
   app.innerHTML = `
@@ -631,97 +646,145 @@ function authView() {
       <button class="tab" data-auth="up">${t("signup")}</button>
       <button class="tab" data-auth="reset">${t("forgot")}</button>
     </div>
-    <form id="auth-form">
-      <input class="field" name="name" placeholder="${t("name")}" style="display:none" />
-      <input class="field" name="email" type="email" required placeholder="${t("email")}" />
-      <input class="field" name="pass" type="password" minlength="4" placeholder="${t("pass")}" />
-      <input class="field hidden" name="code" inputmode="numeric" maxlength="8" placeholder="${t("code")}" />
-      <input class="field hidden" name="npass" type="password" minlength="4" placeholder="${t("newPass")}" />
-      <p class="muted hidden" id="reset-help">${t("resetHelp")}</p>
-      <div id="likes-box" class="hidden"><p class="muted">${t("likesHelp")}</p><div id="likes">${tagToggle(likes)}</div></div>
-      <button class="cta" style="width:100%" type="submit">${t("login")}</button>
-      <p class="err" id="auth-err"></p>
-    </form>`;
+    <div id="auth-box"></div>`;
   nav.innerHTML = "";
   let mode="in";
-  bindTagPick(document.getElementById("likes"), likes);
-  const form=document.getElementById("auth-form");
-  const passEl=form.querySelector("[name=pass]");
-  const codeEl=form.querySelector("[name=code]");
-  const npassEl=form.querySelector("[name=npass]");
-  const helpEl=document.getElementById("reset-help");
+  const box=document.getElementById("auth-box");
+  function paintLogin(){
+    box.innerHTML=`<form id="auth-form">
+      <input class="field" name="name" placeholder="${t("name")}" style="display:${mode==="up"?"block":"none"}" />
+      <input class="field" name="email" type="email" required placeholder="${t("email")}" />
+      <input class="field" name="pass" type="password" required minlength="4" placeholder="${t("pass")}" />
+      <div id="likes-box" class="${mode==="up"?"":"hidden"}"><p class="muted">${t("likesHelp")}</p><div id="likes">${tagToggle(likes)}</div></div>
+      <button class="cta" style="width:100%" type="submit">${mode==="up"?t("signup"):t("login")}</button>
+      <p class="err" id="auth-err"></p>
+    </form>`;
+    bindTagPick(document.getElementById("likes"), likes);
+    document.getElementById("auth-form").onsubmit=async(e)=>{
+      e.preventDefault();
+      const fd=new FormData(e.target);
+      const email=String(fd.get("email")).trim().toLowerCase();
+      const pass=String(fd.get("pass")||"");
+      const name=(String(fd.get("name")||"").trim()||email.split("@")[0]).slice(0,18);
+      const err=document.getElementById("auth-err"); err.textContent=t("wait");
+      try{
+        const hash=await hashPass(email,pass);
+        if(mode==="up"){
+          if(!likes.length) throw new Error(t("needTag"));
+          let exists=null; try{ exists=(await db("get",T.users,email))?.value; }catch{}
+          if(exists) throw new Error(t("emailUsed"));
+          me=freshUser(email,name,hash,likes.slice());
+          await saveMe();
+        } else {
+          const u=(await db("get",T.users,email))?.value;
+          if(!u||u.passHash!==hash) throw new Error(t("badLogin"));
+          me=u; me.notes=me.notes||[]; migratePacks(me);
+          applyDaily(me); await saveMe();
+        }
+        localStorage.setItem("ag_session", JSON.stringify({email:me.email,id:me.id}));
+        applyTheme(); render();
+      }catch(ex){ err.textContent=ex.message; }
+    };
+  }
+  function paintReset(){
+    let step=1, email="", uname="", cap=newCaptcha();
+    function draw(){
+      const steps=`<p class="muted">${t("resetStep1")} → ${t("resetStep2")} → ${t("resetStep3")} → ${t("resetStep4")} → ${t("resetStep5")}</p>`;
+      if(step===1){
+        box.innerHTML=`${steps}<h2>${t("resetStep1")}</h2>
+          <input class="field" id="rname" placeholder="${t("user")}" value="${escapeHtml(uname)}" />
+          <input class="field" id="remail" type="email" placeholder="${t("email")}" value="${escapeHtml(email)}" />
+          <button class="cta" id="rnext">${t("next")}</button><p class="err" id="auth-err"></p>`;
+        document.getElementById("rnext").onclick=()=>{
+          uname=document.getElementById("rname").value.trim();
+          email=document.getElementById("remail").value.trim().toLowerCase();
+          if(!uname||!email.includes("@")) return document.getElementById("auth-err").textContent=t("badUserMail");
+          step=2; cap=newCaptcha(); draw();
+        };
+      } else if(step===2){
+        box.innerHTML=`${steps}<h2>${t("resetStep2")}</h2>
+          <div class="item"><b>${t("captcha")} ${cap.q} ?</b></div>
+          <input class="field" id="rcap" inputmode="numeric" placeholder="${cap.q}" />
+          <button class="ghost" id="rcapnew">${lang==="en"?"New puzzle":"Outra soma"}</button>
+          <button class="cta" id="rnext">${t("next")}</button><p class="err" id="auth-err"></p>`;
+        document.getElementById("rcapnew").onclick=()=>{ cap=newCaptcha(); draw(); };
+        document.getElementById("rnext").onclick=async()=>{
+          const err=document.getElementById("auth-err");
+          if(document.getElementById("rcap").value.trim()!==cap.a){ err.textContent=t("badCaptcha"); cap=newCaptcha(); return; }
+          err.textContent=t("wait");
+          try{
+            let u=null; try{ u=(await db("get",T.users,email))?.value; }catch{}
+            if(u && String(u.name||"").trim().toLowerCase()===uname.toLowerCase()){
+              const raw=String(Math.floor(100000+Math.random()*900000));
+              u.resetHash=await hashPass(email,"reset|"+raw);
+              u.resetUntil=Date.now()+20*60*1000;
+              await saveUser(u);
+              await sendResetEmail(email, raw);
+            }
+            step=3; draw();
+          }catch(ex){ err.textContent=ex.message; }
+        };
+      } else if(step===3){
+        box.innerHTML=`${steps}<h2>${t("resetStep3")}</h2>
+          <p class="muted">${t("resetSent")}</p>
+          <button class="cta" id="rnext">${t("next")}</button>`;
+        document.getElementById("rnext").onclick=()=>{ step=4; draw(); };
+      } else if(step===4){
+        box.innerHTML=`${steps}<h2>${t("resetStep4")}</h2>
+          <input class="field" id="rcode" inputmode="numeric" maxlength="8" placeholder="${t("code")}" />
+          <button class="cta" id="rnext">${t("next")}</button><p class="err" id="auth-err"></p>`;
+        document.getElementById("rnext").onclick=()=>{
+          if(!document.getElementById("rcode").value.trim()) return document.getElementById("auth-err").textContent=t("badCode");
+          step=5; draw();
+        };
+      } else {
+        const code=document.getElementById("rcode")?document.getElementById("rcode").value.trim():paintReset._code;
+        box.innerHTML=`${steps}<h2>${t("resetStep5")}</h2>
+          <input class="field" id="rpass" type="password" minlength="4" placeholder="${t("newPass")}" />
+          <input class="field" id="rpass2" type="password" minlength="4" placeholder="${t("confirmPass")}" />
+          <button class="cta" id="rnext">${t("resetPass")}</button><p class="err" id="auth-err"></p>`;
+        document.getElementById("rnext").onclick=async()=>{
+          const err=document.getElementById("auth-err");
+          const p1=document.getElementById("rpass").value, p2=document.getElementById("rpass2").value;
+          if(p1.length<4) return err.textContent=t("newPass");
+          if(p1!==p2) return err.textContent=t("passMismatch");
+          err.textContent=t("wait");
+          try{
+            const typed=paintReset._code||"";
+            const u=(await db("get",T.users,email))?.value;
+            if(!u||!u.resetHash||!u.resetUntil||Date.now()>u.resetUntil) throw new Error(t("badCode"));
+            const okHash=await hashPass(email,"reset|"+typed);
+            let ok=u.resetHash===okHash;
+            if(!ok){ try{ const v=await sb.auth.verifyOtp({ email, token:typed, type:"email" }); ok=!v.error; }catch{} }
+            if(!ok) throw new Error(t("badCode"));
+            u.passHash=await hashPass(email,p1);
+            u.resetHash=""; u.resetUntil=0;
+            await saveUser(u);
+            await notify(u.id,{type:"login",text:lang==="en"?"Password changed":"Senha alterada"});
+            toast(t("passChanged"));
+            mode="in";
+            app.querySelectorAll("[data-auth]").forEach(x=>x.classList.toggle("on", x.dataset.auth==="in"));
+            paintLogin();
+          }catch(ex){ err.textContent=ex.message; }
+        };
+      }
+      if(step===4){
+        document.getElementById("rnext").onclick=()=>{
+          const c=document.getElementById("rcode").value.trim();
+          if(!c) return document.getElementById("auth-err").textContent=t("badCode");
+          paintReset._code=c; step=5; draw();
+        };
+      }
+    }
+    draw();
+  }
   function setMode(next){
     mode=next;
     app.querySelectorAll("[data-auth]").forEach(x=>x.classList.toggle("on", x.dataset.auth===next));
-    form.querySelector("[name=name]").style.display = mode==="up"?"block":"none";
-    document.getElementById("likes-box").classList.toggle("hidden", mode!=="up");
-    passEl.classList.toggle("hidden", mode==="reset");
-    passEl.required = mode!=="reset";
-    codeEl.classList.toggle("hidden", mode!=="reset");
-    npassEl.classList.toggle("hidden", mode!=="reset");
-    helpEl.classList.toggle("hidden", mode!=="reset");
-    form.querySelector(".cta").textContent = mode==="up"?t("signup"):mode==="reset"?t("resetPass"):t("login");
+    if(mode==="reset") paintReset(); else paintLogin();
   }
   app.querySelectorAll("[data-auth]").forEach(b => b.onclick = () => setMode(b.dataset.auth));
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    const fd=new FormData(form);
-    const email=String(fd.get("email")).trim().toLowerCase();
-    const pass=String(fd.get("pass")||"");
-    const name=(String(fd.get("name")||"").trim()||email.split("@")[0]).slice(0,18);
-    const err=document.getElementById("auth-err"); err.textContent=t("wait");
-    try {
-      if (mode==="reset") {
-        const code=String(fd.get("code")||"").trim();
-        const npass=String(fd.get("npass")||"");
-        if (!code) {
-          let u=null; try{ u=(await db("get",T.users,email))?.value; }catch{}
-          if (u) {
-            const raw=String(Math.floor(100000+Math.random()*900000));
-            u.resetHash=await hashPass(email,"reset|"+raw);
-            u.resetUntil=Date.now()+20*60*1000;
-            await saveUser(u);
-            await sendResetEmail(email, raw);
-          }
-          err.textContent=t("resetSent");
-          return;
-        }
-        if (npass.length<4) throw new Error(t("newPass"));
-        const u=(await db("get",T.users,email))?.value;
-        if(!u||!u.resetHash||!u.resetUntil||Date.now()>u.resetUntil) throw new Error(t("badCode"));
-        const okHash=await hashPass(email,"reset|"+code);
-        let ok=u.resetHash===okHash;
-        if(!ok){
-          try{
-            const v=await sb.auth.verifyOtp({ email, token:code, type:"email" });
-            ok=!v.error;
-          }catch{}
-        }
-        if(!ok) throw new Error(t("badCode"));
-        u.passHash=await hashPass(email,npass);
-        u.resetHash=""; u.resetUntil=0;
-        await saveUser(u);
-        err.textContent=t("passChanged");
-        setMode("in");
-        return;
-      }
-      const hash=await hashPass(email,pass);
-      if (mode==="up") {
-        if (!likes.length) throw new Error(t("needTag"));
-        let exists=null; try{ exists=(await db("get",T.users,email))?.value; }catch{}
-        if (exists) throw new Error(t("emailUsed"));
-        me=freshUser(email,name,hash,likes.slice());
-        await saveMe();
-      } else {
-        const u=(await db("get",T.users,email))?.value;
-        if(!u||u.passHash!==hash) throw new Error(t("badLogin"));
-        me=u; me.notes=me.notes||[]; migratePacks(me);
-        applyDaily(me); await saveMe();
-      }
-      localStorage.setItem("ag_session", JSON.stringify({email:me.email,id:me.id}));
-      applyTheme(); render();
-    } catch(ex){ err.textContent=ex.message; }
-  };
+  paintLogin();
 }
 
 function navBar() {
